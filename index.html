@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8" />
-<title>门店开单系统 V2（品牌筛选版）</title>
+<title>门店开单系统 V2（历史记录版）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
 <style>
@@ -10,21 +10,25 @@ body { font-family: Arial; margin:0; background:#f5f5f5; padding-bottom: 80px; }
 .header { padding:12px; font-size:18px; background:#fff; position:sticky; top:0; z-index:10; border-bottom:1px solid #e8e8e8; }
 .card { background:#fff; margin:10px; padding:10px; border-radius:10px; }
 
-/* 🔴 调整为紧凑的靠左弹性布局，商品名和加减器不再离得很远 */
+/* 靠左紧凑弹性布局 */
 .item { padding:10px 0; border-bottom:1px solid #eee; display: flex; align-items: center; justify-content: flex-start; gap: 15px; }
 .item:active { background:#f0f7ff; }
+
+/* 历史列表专用样式 */
+.history-item { padding:12px; border-bottom:1px solid #eee; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.history-item:active { background:#f5f5f5; }
 
 input, button { font-size:15px; }
 input { width:100%; padding:8px; margin:5px 0; box-sizing:border-box; }
 
 button { background:#1677ff; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor: pointer; }
+.btn-new-order { background:#2f54eb; color:#fff; padding:10px; width:100%; border-radius:6px; font-weight:bold; margin-bottom:10px; text-align:center;}
 .smallbtn { background:#eee; color:#333; padding:4px 6px; margin-left:6px; font-size: 13px; }
 .btn-counter { background:#e6f4ff; color:#1677ff; font-weight: bold; padding: 3px 8px; }
 
 /* 品牌筛选标签 */
 .brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 6px 0; }
 .brand-badge { background: #e8e8e8; color: #333; padding: 6px 12px; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 500; }
-/* 激活态品牌样式 */
 .brand-badge.active { background: #1677ff; color: #fff; }
 
 .brand { font-weight:bold; margin-top:10px; padding: 4px 0; color: #1677ff; font-size: 16px; }
@@ -32,7 +36,7 @@ button { background:#1677ff; color:#fff; border:none; padding:5px 10px; border-r
 .sub { font-size:12px; color:#888; }
 .hide { display:none; }
 
-/* 🔴 信息高密度展示，控制宽度，防止拉得太开 */
+/* 信息高密度展示 */
 .prod-info { width: 40%; min-width: 120px; flex-shrink: 0; }
 .prod-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .control-group { display: flex; align-items: center; gap: 12px; }
@@ -75,15 +79,17 @@ const SUPABASE_URL = "https://mnmzqmqxdzagpounvchn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_-AQkn3K06H0cykzBsM_pGg_J1lYgIPF";
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-let STATE = "EMP";
+let STATE = "EMP"; // EMP, STORE, HISTORY, ORDER, DETAIL
 let employees = [];
 let stores = [];
 let products = [];
 
 let currentEmployee = null;
 let currentStores = [];
+let currentStore = null; // 当前选中的单家门店
 let orderData = null;
-let currentSelectedBrand = null; // 🔴 记录当前选中的品牌
+let currentSelectedBrand = null; 
+let historyOrders = []; // 存放当前门店的历史单据
 
 // INIT
 async function init(){
@@ -101,24 +107,21 @@ async function init(){
 function handleSearch(){
   if(STATE === 'EMP') renderEmployees();
   else if(STATE === 'STORE') renderStores();
-  else if(STATE === 'ORDER') renderOrder();
+  // 历史页和开单页通常不走主搜索框，保留架构
 }
 
 function getSearch(){
   return document.getElementById('search').value || '';
 }
 
-// EMP
+// 1. 员工列表
 function renderEmployees(){
   STATE = 'EMP';
   document.getElementById('back').classList.add('hide');
+  document.getElementById('search').classList.remove('hide');
 
   const k = getSearch();
-
-  const list = employees.filter(e=>
-    (e.employee_name||'').includes(k) ||
-    (e.employee_code||'').includes(k)
-  );
+  const list = employees.filter(e=> (e.employee_name||'').includes(k) || (e.employee_code||'').includes(k) );
 
   document.getElementById('list').innerHTML = list.map(e=>`
     <div class='item' onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
@@ -130,24 +133,23 @@ function renderEmployees(){
   `).join('');
 }
 
-// STORE
+// 2. 进入员工，获取门店
 async function openEmployee(code,name){
   STATE = 'STORE';
   currentEmployee = {code,name};
 
   document.getElementById('back').classList.remove('hide');
+  document.getElementById('search').classList.remove('hide');
   document.getElementById('list').innerHTML = '加载中...';
 
-  const r = await client.from('employee_stores')
-    .select('atom_code')
-    .eq('employee_code', code);
-
+  const r = await client.from('employee_stores').select('atom_code').eq('employee_code', code);
   const codes = (r.data||[]).map(i=>i.atom_code);
   currentStores = stores.filter(s=>codes.includes(s.atom_code));
 
   renderStores();
 }
 
+// 3. 门店列表
 function renderStores(){
   STATE = 'STORE';
   const k = getSearch();
@@ -156,7 +158,7 @@ function renderStores(){
   document.getElementById('list').innerHTML = `
     <div class='sub' style='font-weight:bold;margin-bottom:10px;'>当前员工：${currentEmployee.name}</div>
     ${f.map(s=>`
-      <div class='item' onclick="openOrder('${s.atom_code}','${s.store_name}')">
+      <div class='item' onclick="openStoreHistory('${s.atom_code}','${s.store_name}')">
         <div>
           <strong>${s.store_name}</strong>
           <div class='sub'>${s.atom_code}</div>
@@ -166,11 +168,98 @@ function renderStores(){
   `;
 }
 
-// ORDER
+// 4. 🔴【新加】获取并展现门店历史开单记录
+async function openStoreHistory(atom, name) {
+  STATE = 'HISTORY';
+  currentStore = { atom, name };
+  document.getElementById('back').classList.remove('hide');
+  document.getElementById('search').classList.add('hide'); // 隐藏搜索框更清爽
+  document.getElementById('list').innerHTML = '正在查询历史账单...';
+
+  // 查 orders 表中该门店的所有历史，按日期倒序
+  const { data, error } = await client
+    .from('orders')
+    .select('*')
+    .eq('atom_code', atom)
+    .order('order_date', { ascending: false });
+
+  historyOrders = data || [];
+  renderHistory();
+}
+
+function renderHistory(){
+  STATE = 'HISTORY';
+  document.getElementById('list').innerHTML = `
+    <div class='sub' style='font-weight:bold;'>当前门店：${currentStore.name}</div>
+    <div style="margin: 10px 0 15px 0;">
+       <button class="btn-new-order" onclick="openOrder('${currentStore.atom}','${currentStore.name}')">➕ 开始新开单</button>
+    </div>
+    
+    <div style="font-size:14px; font-weight:bold; margin-bottom:5px; color:#555;">📋 历史开单记录 (${historyOrders.length})</div>
+    
+    ${historyOrders.length === 0 ? `<div class="sub" style="text-align:center;padding:20px;">暂无开单记录</div>` : 
+      historyOrders.map(o => `
+        <div class="history-item" onclick="viewOrderDetail('${o.id}', '${o.order_date}')">
+          <div>
+            <span style="font-size:15px; font-weight:bold;">📅 ${o.order_date}</span>
+            <div class="sub">订单号: ${o.id}</div>
+          </div>
+          <span style="color:#1677ff; font-size:14px;">查看明细 →</span>
+        </div>
+      `).join('')
+    }
+  `;
+}
+
+// 5. 🔴【新加】查看某条历史订单的详细商品明细
+async function viewOrderDetail(orderId, orderDate) {
+  STATE = 'DETAIL';
+  document.getElementById('list').innerHTML = '正在加载明细...';
+
+  // 查询明细表
+  const { data: items, error } = await client
+    .from('order_items')
+    .select('*')
+    .eq('order_id', orderId);
+
+  if(error || !items) {
+    alert("明细加载失败");
+    renderHistory();
+    return;
+  }
+
+  // 渲染历史明细只读页面
+  document.getElementById('list').innerHTML = `
+    <div class='sub' style='font-weight:bold;'>门店：${currentStore.name}</div>
+    <div class='sub' style='margin-bottom:10px;'>单据日期：${orderDate}</div>
+    
+    <div style="font-size:14px; font-weight:bold; margin-bottom:5px; color:#333; border-bottom:2px solid #ccc; padding-bottom:5px;">📦 已开商品清单</div>
+    
+    ${items.map(it => {
+      const p = products.find(x => x.id == it.product_id) || { product_name: '未知商品', spec: '', brand: '未知' };
+      return `
+        <div class='item' style="background:#fff;">
+          <div class='prod-info' style="width:50%;">
+            <div class='prod-name'>${p.spec || ''}${p.product_name}</div>
+            <div class='sub'>品牌: ${p.brand}</div>
+          </div>
+          <div style="font-size:14px; color:#333;">
+            数量: <strong style="color:#ff4d4f;">${it.qty}</strong> 
+            <span style="margin-left:15px;">单价: <strong>${it.price}元</strong></span>
+          </div>
+        </div>
+      `;
+    }).join('')}
+    
+    <div style="margin-top:20px;">
+       <button style="background:#8c8c8c; width:100%; padding:10px;" onclick="renderHistory()">返回历史列表</button>
+    </div>
+  `;
+}
+
+// 6. 开始开单页
 function openOrder(atom,name){
   STATE = 'ORDER';
-  document.getElementById('back').classList.remove('hide');
-
   const d = new Date();
   const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -181,11 +270,10 @@ function openOrder(atom,name){
     items: {}
   };
 
-  currentSelectedBrand = null; // 重置筛选状态
+  currentSelectedBrand = null; 
   renderOrder();
 }
 
-// 🔴 切换品牌筛选函数
 function selectBrand(brandName) {
   currentSelectedBrand = brandName;
   renderOrder();
@@ -201,13 +289,7 @@ function renderOrder(){
   });
 
   const brands = Object.keys(grouped);
-  
-  // 🔴 默认选中第一个品牌
-  if (!currentSelectedBrand && brands.length > 0) {
-    currentSelectedBrand = brands[0];
-  }
-
-  // 获取当前需要渲染的品牌和商品数据
+  if (!currentSelectedBrand && brands.length > 0) currentSelectedBrand = brands[0];
   const displayProducts = grouped[currentSelectedBrand] || [];
 
   document.getElementById('list').innerHTML = `
@@ -218,11 +300,7 @@ function renderOrder(){
     </div>
 
     <div class='brand-nav'>
-      ${brands.map(b => `
-        <div class="brand-badge ${b === currentSelectedBrand ? 'active' : ''}" onclick="selectBrand('${b}')">
-          ${b}
-        </div>
-      `).join('')}
+      ${brands.map(b => `<div class="brand-badge ${b === currentSelectedBrand ? 'active' : ''}" onclick="selectBrand('${b}')">${b}</div>`).join('')}
     </div>
 
     <div class='brand'>📍 当前品牌：${currentSelectedBrand}</div>
@@ -232,14 +310,12 @@ function renderOrder(){
         <div class='prod-info'>
           <div class='prod-name'>${p.spec || ''}${p.product_name}</div>
         </div>
-        
         <div class='control-group'>
           <div class='ctrl-item'>
             <button class='btn-counter' onclick="changeQty('${p.id}',-1)">-</button>
             <span class='ctrl-val' id='q_${p.id}'>${orderData.items[p.id]?.qty||0}</span>
             <button class='btn-counter' onclick="changeQty('${p.id}',1)">+</button>
           </div>
-          
           <div class='ctrl-item'>
             <button class='btn-counter' onclick="changePrice('${p.id}',-0.1)">-</button>
             <span class='ctrl-val' id='p_${p.id}' style='min-width:35px;'>${orderData.items[p.id]?.price ?? p.default_price}</span>
@@ -274,18 +350,12 @@ function changePrice(id,v){
 
 function editDate(){
   const d = prompt('修改日期', orderData.date);
-  if(d){
-    orderData.date = d;
-    document.getElementById('dateText').innerText = d;
-  }
+  if(d) { orderData.date = d; document.getElementById('dateText').innerText = d; }
 }
 
 async function submitOrder(){
   const hasItems = Object.keys(orderData.items).some(id => orderData.items[id].qty > 0);
-  if(!hasItems){
-    alert("请至少选择一件商品数量大于0");
-    return;
-  }
+  if(!hasItems){ alert("请至少选择一件商品数量大于0"); return; }
 
   const { data: o, error } = await client.from('orders').insert({
     employee_code: currentEmployee.code,
@@ -293,43 +363,34 @@ async function submitOrder(){
     order_date: orderData.date
   }).select().single();
 
-  if(error){
-    alert("主订单提交失败：" + error.message);
-    return;
-  }
+  if(error){ alert("主订单提交失败：" + error.message); return; }
 
   const items = [];
   Object.keys(orderData.items).forEach(id=>{
     const it = orderData.items[id];
     if(it.qty > 0){
-      items.push({
-        order_id: o.id,
-        product_id: id,
-        qty: it.qty,
-        price: it.price
-      });
+      items.push({ order_id: o.id, product_id: id, qty: it.qty, price: it.price });
     }
   });
 
   if(items.length > 0){
     const { error: itemErr } = await client.from('order_items').insert(items);
-    if(itemErr){
-      alert("商品明细提交失败：" + itemErr.message);
-      return;
-    }
+    if(itemErr){ alert("商品明细提交失败：" + itemErr.message); return; }
   }
 
   alert('订单提交成功！');
-  openEmployee(currentEmployee.code, currentEmployee.name);
+  // 提交成功后刷回该店铺的历史记录页，就能看到刚开的单子了
+  openStoreHistory(currentStore.atom, currentStore.name);
 }
 
-// BACK
+// 多级返回控制
 function goBack(){
-  if(STATE === 'ORDER') openEmployee(currentEmployee.code,currentEmployee.name);
+  if(STATE === 'DETAIL') renderHistory();
+  else if(STATE === 'ORDER') renderHistory();
+  else if(STATE === 'HISTORY') renderStores();
   else if(STATE === 'STORE') renderEmployees();
 }
 
-// 执行初始化
 init();
 
 </script>
