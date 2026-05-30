@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>调试版门店系统</title>
+  <title>门店开单系统V3</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
@@ -12,11 +12,22 @@
       background: #f5f5f5;
     }
 
+    h2 {
+      margin-bottom: 10px;
+    }
+
     .card {
       background: white;
       padding: 15px;
       border-radius: 10px;
-      margin-bottom: 15px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      margin-bottom: 10px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
     }
 
     .item {
@@ -29,19 +40,14 @@
       background: #f0f7ff;
     }
 
-    input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
-    }
-
     .btn {
-      padding: 6px 10px;
       background: #1677ff;
       color: white;
       border: none;
+      padding: 6px 10px;
       border-radius: 6px;
       cursor: pointer;
+      margin-top: 5px;
     }
 
     .back {
@@ -50,104 +56,126 @@
       margin-bottom: 10px;
       display: none;
     }
+
+    .sub {
+      font-size: 12px;
+      color: #888;
+    }
   </style>
 </head>
 
 <body>
 
-<h2>📦 调试版门店系统</h2>
+<h2>📦 门店开单系统 V3（稳定版）</h2>
 
 <div class="card">
-  <input id="search" placeholder="搜索员工..." oninput="renderEmployees()" />
-  <button class="btn" onclick="loadData()">刷新</button>
+
+  <input id="search" placeholder="搜索员工 / 门店 / 编码..." oninput="renderEmployees()" />
 
   <div id="back" class="back" onclick="back()">← 返回员工列表</div>
 
   <div id="list"></div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  const SUPABASE_URL = "https://mnmzqmqxdzagpounvchn.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_-AQkn3K06H0cykzBsM_pGg_J1lYgIPF";
+const client = supabase.createClient(
+  "https://mnmzqmqxdzagpounvchn.supabase.co",
+  "你的anon_key"
+);
 
-  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let rawData = [];
 
-  let rawData = [];
+// ================== 1. 拉取数据 ==================
+async function loadData() {
+  const { data, error } = await client
+    .from("stores")   // 你当前唯一真实表
+    .select("*")
+    .range(0, 99999); // 🔥 解决1000限制
 
-  // ===== 1. 拉数据 =====
-  async function loadData() {
-    const { data, error } = await client
-      .from("stores")
-      .select("*")
-      .limit(10000);
-
-    if (error) {
-      alert("错误：" + error.message);
-      return;
-    }
-
-    rawData = data || [];
-
-    // 🔥 关键调试信息
-    console.log("=== TOTAL ROWS ===", rawData.length);
-    console.log("=== SAMPLE ===", rawData.slice(0, 5));
-    console.log("=== KEYS ===", Object.keys(rawData[0] || {}));
-
-    renderEmployees();
+  if (error) {
+    alert("加载失败：" + error.message);
+    return;
   }
 
-  // ===== 2. 员工列表（不去重版本）=====
-  function renderEmployees() {
-    document.getElementById("back").style.display = "none";
+  rawData = data || [];
 
-    const keyword = document.getElementById("search").value || "";
+  console.log("TOTAL:", rawData.length);
+  console.log("SAMPLE:", rawData.slice(0, 3));
 
-    const list = rawData.filter(r => {
-      return (
-        (r.employee_name || "").includes(keyword) ||
-        (r.employee_code || "").includes(keyword)
-      );
+  renderEmployees();
+}
+
+// ================== 2. 首页：员工列表（去重显示） ==================
+function renderEmployees() {
+  document.getElementById("back").style.display = "none";
+
+  const keyword = document.getElementById("search").value || "";
+
+  // 去重员工（只用于展示，不影响数据）
+  const map = new Map();
+
+  rawData.forEach(r => {
+    if (!r.employee_code) return;
+
+    map.set(r.employee_code, {
+      employee_code: r.employee_code,
+      employee_name: r.employee_name
     });
+  });
 
-    document.getElementById("list").innerHTML = list.map(r => `
-      <div class="item" onclick="openEmployee('${r.employee_code}', '${r.employee_name}')">
-        👤 ${r.employee_name || "NULL"} 
-        <div style="font-size:12px;color:#999">
-          ${r.employee_code || "NO CODE"} ｜ ${r.store_name || ""}
+  let list = Array.from(map.values());
+
+  list = list.filter(e =>
+    (e.employee_name || "").includes(keyword) ||
+    (e.employee_code || "").includes(keyword)
+  );
+
+  document.getElementById("list").innerHTML = list.map(e => `
+    <div class="item" onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
+      👤 ${e.employee_name || "未知"}
+      <div class="sub">${e.employee_code}</div>
+    </div>
+  `).join("");
+}
+
+// ================== 3. 进入员工 → 门店列表 ==================
+function openEmployee(code, name) {
+  document.getElementById("back").style.display = "block";
+
+  const stores = rawData.filter(r => r.employee_code === code);
+
+  document.getElementById("list").innerHTML = `
+    <h3>👤 ${name}</h3>
+
+    ${stores.map(s => `
+      <div class="item">
+        🏪 ${s.store_name || "未知门店"}
+        <div class="sub">
+          门店码：${s.atom_code || "-"}
         </div>
+        <button class="btn" onclick="openOrder('${s.atom_code}')">
+          开单
+        </button>
       </div>
-    `).join("");
-  }
+    `).join("")}
+  `;
+}
 
-  // ===== 3. 进入员工 =====
-  function openEmployee(code, name) {
-    document.getElementById("back").style.display = "block";
+// ================== 4. 返回 ==================
+function back() {
+  renderEmployees();
+}
 
-    const stores = rawData.filter(r => r.employee_code === code);
+// ================== 5. 开单入口 ==================
+function openOrder(atom) {
+  alert("进入开单：" + atom);
+}
 
-    document.getElementById("list").innerHTML = `
-      <h3>👤 ${name}</h3>
-      ${stores.map(s => `
-        <div class="item">
-          🏪 ${s.store_name}
-          <div style="font-size:12px;color:#999">${s.atom_code}</div>
-          <button class="btn" onclick="openOrder('${s.atom_code}')">开单</button>
-        </div>
-      `).join("")}
-    `;
-  }
-
-  function back() {
-    renderEmployees();
-  }
-
-  function openOrder(atom) {
-    alert("开单：" + atom);
-  }
-
-  loadData();
+// 初始化
+loadData();
 </script>
 
 </body>
