@@ -2,17 +2,17 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8" />
-<title>门店开单系统</title>
+<title>门店开单系统 V2（稳定版）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
 <style>
 body { font-family: Arial; margin:0; background:#f5f5f5; }
-.header { padding:12px; font-size:18px; background:#fff; position:sticky; top:0; }
+.header { padding:12px; font-size:18px; background:#fff; position:sticky; top:0; z-index:10; }
 .card { background:#fff; margin:10px; padding:10px; border-radius:10px; }
 .item { padding:10px; border-bottom:1px solid #eee; }
 .item:active { background:#f0f7ff; }
 input, button { font-size:16px; }
-input { width:100%; padding:8px; margin:5px 0; }
+input { width:100%; padding:8px; margin:5px 0; box-sizing:border-box; }
 button { background:#1677ff; color:#fff; border:none; padding:6px 10px; border-radius:6px; }
 .smallbtn { background:#eee; color:#333; padding:4px 6px; margin-left:6px; }
 .brand { font-weight:bold; margin-top:10px; }
@@ -24,10 +24,10 @@ button { background:#1677ff; color:#fff; border:none; padding:6px 10px; border-r
 
 <body>
 
-<div class="header">📦 门店开单系统</div>
+<div class="header">📦 门店开单系统 V2</div>
 
 <div class="card">
-<input id="search" placeholder="搜索..." oninput="handleSearch()" />
+<input id="search" placeholder="搜索员工 / 门店" oninput="handleSearch()" />
 <div id="back" class="sub hide" onclick="goBack()">← 返回</div>
 <div id="list"></div>
 </div>
@@ -42,11 +42,13 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 let STATE = "EMP";
 let employees = [];
 let stores = [];
-let currentEmployee = null;
-let currentStores = [];
 let products = [];
 
-// init
+let currentEmployee = null;
+let currentStores = [];
+let orderData = null;
+
+// INIT
 init();
 async function init(){
   const e = await client.from('employees').select('*');
@@ -61,50 +63,57 @@ async function init(){
 }
 
 function handleSearch(){
-  if(STATE==='EMP') renderEmployees();
-  else renderStores();
+  if(STATE === 'EMP') renderEmployees();
+  else if(STATE === 'STORE') renderStores();
+  else if(STATE === 'ORDER') renderOrder();
 }
 
-// EMPLOYEES
+function getSearch(){
+  return document.getElementById('search').value || '';
+}
+
+// EMP
 function renderEmployees(){
-  STATE='EMP';
+  STATE = 'EMP';
   document.getElementById('back').classList.add('hide');
-  const k = search.value;
+
+  const k = getSearch();
+
   const list = employees.filter(e=>
-    (e.employee_name||'').includes(k)||
+    (e.employee_name||'').includes(k) ||
     (e.employee_code||'').includes(k)
   );
 
-  list.forEach;
-
   document.getElementById('list').innerHTML = list.map(e=>`
-    <div class='item' onclick="openEmp('${e.employee_code}','${e.employee_name}')">
+    <div class='item' onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
       ${e.employee_name}
       <div class='sub'>${e.employee_code}</div>
     </div>
   `).join('');
 }
 
-// STORES
-async function openEmp(code,name){
-  STATE='STORE';
-  currentEmployee={code,name};
+// STORE
+async function openEmployee(code,name){
+  STATE = 'STORE';
+  currentEmployee = {code,name};
+
   document.getElementById('back').classList.remove('hide');
-  document.getElementById('list').innerHTML='加载中...';
+  document.getElementById('list').innerHTML = '加载中...';
 
   const r = await client.from('employee_stores')
     .select('atom_code')
-    .eq('employee_code',code);
+    .eq('employee_code', code);
 
-  const codes=(r.data||[]).map(i=>i.atom_code);
-
+  const codes = (r.data||[]).map(i=>i.atom_code);
   currentStores = stores.filter(s=>codes.includes(s.atom_code));
 
   renderStores();
 }
 
 function renderStores(){
-  const k = search.value;
+  STATE = 'STORE';
+
+  const k = getSearch();
 
   const f = currentStores.filter(s=>
     (s.store_name||'').includes(k)
@@ -123,7 +132,7 @@ function renderStores(){
 
 // ORDER
 function openOrder(atom,name){
-  STATE='ORDER';
+  STATE = 'ORDER';
   document.getElementById('back').classList.remove('hide');
 
   const today = new Date().toISOString().split('T')[0];
@@ -134,11 +143,28 @@ function openOrder(atom,name){
     grouped[p.brand].push(p);
   });
 
-  window.orderData={atom,name,date:today,items:{}};
+  orderData = {
+    atom,
+    name,
+    date: today,
+    items: {}
+  };
+
+  renderOrder();
+}
+
+function renderOrder(){
+  STATE = 'ORDER';
+
+  const grouped = {};
+  products.forEach(p=>{
+    if(!grouped[p.brand]) grouped[p.brand]=[];
+    grouped[p.brand].push(p);
+  });
 
   document.getElementById('list').innerHTML = `
     <div class='row'>
-      📅 <span id='dateText'>${today}</span>
+      📅 <span id='dateText'>${orderData.date}</span>
       <button class='smallbtn' onclick='editDate()'>修改</button>
     </div>
 
@@ -149,13 +175,17 @@ function openOrder(atom,name){
           ${p.spec}${p.product_name}
           <div class='sub'>默认 ${p.default_price}元</div>
 
-          数量 <button onclick="addQty('${p.id}',-1)">-</button>
-          <span id='q_${p.id}'>0</span>
-          <button onclick="addQty('${p.id}',1)">+</button>
+          数量
+          <button onclick="changeQty('${p.id}',-1)">-</button>
+          <span id='q_${p.id}'>${orderData.items[p.id]?.qty||0}</span>
+          <button onclick="changeQty('${p.id}',1)">+</button>
 
-          价格 <button onclick="addPrice('${p.id}',-0.1)">-</button>
-          <span id='p_${p.id}'>${p.default_price}</span>
-          <button onclick="addPrice('${p.id}',0.1)">+</button>
+          <br/>
+
+          价格
+          <button onclick="changePrice('${p.id}',-0.1)">-</button>
+          <span id='p_${p.id}'>${orderData.items[p.id]?.price ?? p.default_price}</span>
+          <button onclick="changePrice('${p.id}',0.1)">+</button>
         </div>
       `).join('')}
     `).join('')
@@ -166,55 +196,74 @@ function openOrder(atom,name){
   `;
 }
 
-function addQty(id,v){
-  if(!orderData.items[id]) orderData.items[id]={qty:0,price:0};
-  orderData.items[id].qty=Math.max(0,(orderData.items[id].qty||0)+v);
-  document.getElementById('q_'+id).innerText=orderData.items[id].qty;
+function changeQty(id,v){
+  if(!orderData.items[id]){
+    const p = products.find(x=>x.id==id);
+    orderData.items[id] = {qty:0, price:p.default_price};
+  }
+  orderData.items[id].qty = Math.max(0, (orderData.items[id].qty||0)+v);
+  document.getElementById('q_'+id).innerText = orderData.items[id].qty;
 }
 
-function addPrice(id,v){
-  const base = products.find(p=>p.id==id).default_price;
-  if(!orderData.items[id]) orderData.items[id]={qty:0,price:base};
-  orderData.items[id].price = +(orderData.items[id].price+v).toFixed(1);
-  document.getElementById('p_'+id).innerText=orderData.items[id].price;
+function changePrice(id,v){
+  if(!orderData.items[id]){
+    const p = products.find(x=>x.id==id);
+    orderData.items[id] = {qty:0, price:p.default_price};
+  }
+  orderData.items[id].price = +(orderData.items[id].price + v).toFixed(1);
+  document.getElementById('p_'+id).innerText = orderData.items[id].price;
 }
 
 function editDate(){
-  const d = prompt('修改日期',orderData.date);
-  if(d){orderData.date=d;document.getElementById('dateText').innerText=d;}
+  const d = prompt('修改日期', orderData.date);
+  if(d){
+    orderData.date = d;
+    document.getElementById('dateText').innerText = d;
+  }
 }
 
 async function submitOrder(){
-  const { data: o } = await client.from('orders').insert({
+
+  const { data: o, error } = await client.from('orders').insert({
     employee_code: currentEmployee.code,
     atom_code: orderData.atom,
     order_date: orderData.date
   }).select().single();
 
-  const items=[];
+  if(error){
+    alert(error.message);
+    return;
+  }
+
+  const items = [];
+
   Object.keys(orderData.items).forEach(id=>{
-    const it=orderData.items[id];
-    if(it.qty>0){
+    const it = orderData.items[id];
+    if(it.qty > 0){
       items.push({
-        order_id:o.id,
-        product_id:id,
-        qty:it.qty,
-        price:it.price
+        order_id: o.id,
+        product_id: id,
+        qty: it.qty,
+        price: it.price
       });
     }
   });
 
-  await client.from('order_items').insert(items);
+  if(items.length > 0){
+    await client.from('order_items').insert(items);
+  }
 
   alert('提交成功');
   renderEmployees();
 }
 
+// BACK
 function goBack(){
-  if(STATE==='ORDER') openEmp(currentEmployee.code,currentEmployee.name);
-  else if(STATE==='STORE') renderEmployees();
+  if(STATE === 'ORDER') openEmployee(currentEmployee.code,currentEmployee.name);
+  else if(STATE === 'STORE') renderEmployees();
 }
 
 </script>
+
 </body>
 </html>
