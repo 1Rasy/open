@@ -2,41 +2,44 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8" />
-<title>门店开单系统 V2（精简高效版）</title>
+<title>门店开单系统 V2（品牌筛选版）</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
 <style>
-body { font-family: Arial; margin:0; background:#f5f5f5; padding-bottom: 80px; } /* 留出底部空间防遮挡 */
+body { font-family: Arial; margin:0; background:#f5f5f5; padding-bottom: 80px; }
 .header { padding:12px; font-size:18px; background:#fff; position:sticky; top:0; z-index:10; border-bottom:1px solid #e8e8e8; }
-.card { background:#fff; margin:10px; padding:10px; border-radius:10px; position: relative; }
-.item { padding:10px 0; border-bottom:1px solid #eee; display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card { background:#fff; margin:10px; padding:10px; border-radius:10px; }
+
+/* 🔴 调整为紧凑的靠左弹性布局，商品名和加减器不再离得很远 */
+.item { padding:10px 0; border-bottom:1px solid #eee; display: flex; align-items: center; justify-content: flex-start; gap: 15px; }
 .item:active { background:#f0f7ff; }
+
 input, button { font-size:15px; }
 input { width:100%; padding:8px; margin:5px 0; box-sizing:border-box; }
 
-/* 按钮基础样式 */
 button { background:#1677ff; color:#fff; border:none; padding:5px 10px; border-radius:4px; cursor: pointer; }
 .smallbtn { background:#eee; color:#333; padding:4px 6px; margin-left:6px; font-size: 13px; }
 .btn-counter { background:#e6f4ff; color:#1677ff; font-weight: bold; padding: 3px 8px; }
 
-/* 品牌快捷键区域 */
-.brand-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
-.brand-badge { background: #e8e8e8; color: #333; padding: 4px 8px; border-radius: 4px; font-size: 13px; cursor: pointer; }
-.brand-badge:active { background: #1677ff; color: #fff; }
+/* 品牌筛选标签 */
+.brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0 6px 0; }
+.brand-badge { background: #e8e8e8; color: #333; padding: 6px 12px; border-radius: 6px; font-size: 14px; cursor: pointer; font-weight: 500; }
+/* 激活态品牌样式 */
+.brand-badge.active { background: #1677ff; color: #fff; }
 
-.brand { font-weight:bold; margin-top:15px; padding: 4px 0; color: #333; border-left: 3px solid #1677ff; padding-left: 6px; }
+.brand { font-weight:bold; margin-top:10px; padding: 4px 0; color: #1677ff; font-size: 16px; }
 .row { display:flex; justify-content:space-between; align-items:center; }
 .sub { font-size:12px; color:#888; }
 .hide { display:none; }
 
-/* 行内高密度控制组 */
-.prod-info { flex: 1; min-width: 0; }
+/* 🔴 信息高密度展示，控制宽度，防止拉得太开 */
+.prod-info { width: 40%; min-width: 120px; flex-shrink: 0; }
 .prod-name { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.control-group { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.control-group { display: flex; align-items: center; gap: 12px; }
 .ctrl-item { display: flex; align-items: center; font-size: 13px; color: #666; }
 .ctrl-val { display: inline-block; min-width: 24px; text-align: center; font-weight: bold; color: #000; }
 
-/* 🔴 右下角固定悬浮提交按钮 */
+/* 右下角固定悬浮提交按钮 */
 .float-submit {
   position: fixed;
   right: 16px;
@@ -80,6 +83,7 @@ let products = [];
 let currentEmployee = null;
 let currentStores = [];
 let orderData = null;
+let currentSelectedBrand = null; // 🔴 记录当前选中的品牌
 
 // INIT
 async function init(){
@@ -167,7 +171,6 @@ function openOrder(atom,name){
   STATE = 'ORDER';
   document.getElementById('back').classList.remove('hide');
 
-  // 采用本地中国时区对齐日期格式
   const d = new Date();
   const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -178,13 +181,14 @@ function openOrder(atom,name){
     items: {}
   };
 
+  currentSelectedBrand = null; // 重置筛选状态
   renderOrder();
 }
 
-// 锚点平滑滚动定位
-function scrollToBrand(brandId) {
-  const el = document.getElementById(brandId);
-  if(el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+// 🔴 切换品牌筛选函数
+function selectBrand(brandName) {
+  currentSelectedBrand = brandName;
+  renderOrder();
 }
 
 function renderOrder(){
@@ -197,6 +201,14 @@ function renderOrder(){
   });
 
   const brands = Object.keys(grouped);
+  
+  // 🔴 默认选中第一个品牌
+  if (!currentSelectedBrand && brands.length > 0) {
+    currentSelectedBrand = brands[0];
+  }
+
+  // 获取当前需要渲染的品牌和商品数据
+  const displayProducts = grouped[currentSelectedBrand] || [];
 
   document.getElementById('list').innerHTML = `
     <div class='sub' style='font-weight:bold;'>当前门店：${orderData.name}</div>
@@ -206,33 +218,36 @@ function renderOrder(){
     </div>
 
     <div class='brand-nav'>
-      ${brands.map(b => `<div class='brand-badge' onclick="scrollToBrand('b_${b}')">${b}</div>`).join('')}
-    </div>
-
-    ${brands.map(b=>`
-      <div class='brand' id='b_${b}'>${b}</div>
-      ${grouped[b].map(p=>`
-        <div class='item'>
-          <div class='prod-info'>
-            <div class='prod-name'>${p.spec || ''}${p.product_name}</div>
-          </div>
-          
-          <div class='control-group'>
-            <div class='ctrl-item'>
-              <button class='btn-counter' onclick="changeQty('${p.id}',-1)">-</button>
-              <span class='ctrl-val' id='q_${p.id}'>${orderData.items[p.id]?.qty||0}</span>
-              <button class='btn-counter' onclick="changeQty('${p.id}',1)">+</button>
-            </div>
-            
-            <div class='ctrl-item'>
-              <button class='btn-counter' onclick="changePrice('${p.id}',-0.1)">-</button>
-              <span class='ctrl-val' id='p_${p.id}' style='min-width:35px;'>${orderData.items[p.id]?.price ?? p.default_price}</span>
-              <button class='btn-counter' onclick="changePrice('${p.id}',0.1)">+</button>
-              <span style="font-size:11px;color:#aaa;margin-left:2px;">元</span>
-            </div>
-          </div>
+      ${brands.map(b => `
+        <div class="brand-badge ${b === currentSelectedBrand ? 'active' : ''}" onclick="selectBrand('${b}')">
+          ${b}
         </div>
       `).join('')}
+    </div>
+
+    <div class='brand'>📍 当前品牌：${currentSelectedBrand}</div>
+    
+    ${displayProducts.map(p=>`
+      <div class='item'>
+        <div class='prod-info'>
+          <div class='prod-name'>${p.spec || ''}${p.product_name}</div>
+        </div>
+        
+        <div class='control-group'>
+          <div class='ctrl-item'>
+            <button class='btn-counter' onclick="changeQty('${p.id}',-1)">-</button>
+            <span class='ctrl-val' id='q_${p.id}'>${orderData.items[p.id]?.qty||0}</span>
+            <button class='btn-counter' onclick="changeQty('${p.id}',1)">+</button>
+          </div>
+          
+          <div class='ctrl-item'>
+            <button class='btn-counter' onclick="changePrice('${p.id}',-0.1)">-</button>
+            <span class='ctrl-val' id='p_${p.id}' style='min-width:35px;'>${orderData.items[p.id]?.price ?? p.default_price}</span>
+            <button class='btn-counter' onclick="changePrice('${p.id}',0.1)">+</button>
+            <span style="font-size:11px;color:#aaa;margin-left:2px;">元</span>
+          </div>
+        </div>
+      </div>
     `).join('')}
 
     <button class='float-submit' onclick='submitOrder()'>🚀 提交订单</button>
