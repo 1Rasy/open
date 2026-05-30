@@ -1,34 +1,33 @@
 <!DOCTYPE html>
 <html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <title>门店系统（生产版）</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8" />
+<title>门店开单系统</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <style>
-    body { font-family: Arial; margin:20px; background:#f5f5f5; }
-    .card { background:#fff; padding:15px; border-radius:10px; }
-    .item { padding:12px; border-bottom:1px solid #eee; cursor:pointer; }
-    .item:hover { background:#f0f7ff; }
-    input { width:100%; padding:10px; margin-bottom:10px; }
-    .back { color:#1677ff; cursor:pointer; display:none; margin-bottom:10px; }
-    .sub { font-size:12px; color:#888; }
-    .warn { color:red; font-size:12px; }
-    button { background:#1677ff; color:#fff; border:none; padding:6px 10px; border-radius:6px; }
-  </style>
+<style>
+body { font-family: Arial; margin:20px; background:#f5f5f5; }
+.card { background:#fff; padding:15px; border-radius:10px; }
+.item { padding:12px; border-bottom:1px solid #eee; cursor:pointer; }
+.item:hover { background:#f0f7ff; }
+input, select { width:100%; padding:10px; margin-bottom:10px; }
+.back { color:#1677ff; cursor:pointer; display:none; margin-bottom:10px; }
+.sub { font-size:12px; color:#888; }
+button { background:#1677ff; color:#fff; border:none; padding:6px 10px; border-radius:6px; }
+</style>
 </head>
 
 <body>
 
-<h2>📦 门店系统（上线版）</h2>
+<h2>📦 门店开单系统</h2>
 
 <div class="card">
 
-  <input id="search" placeholder="搜索员工..." oninput="renderEmployees()" />
+<input id="search" placeholder="搜索..." oninput="handleSearch()" />
 
-  <div id="back" class="back" onclick="back()">← 返回</div>
+<div id="back" class="back" onclick="back()">← 返回</div>
 
-  <div id="list"></div>
+<div id="list"></div>
 
 </div>
 
@@ -42,27 +41,29 @@ const client = supabase.createClient(
 );
 
 let employees = [];
+let STATE = "employees";
+let currentEmployee = null;
 
-// ================== 1. 只加载员工 ==================
-async function loadEmployees() {
-
-  const { data, error } = await client
-    .from("employees")
-    .select("*");
-
-  if (error) {
-    alert(error.message);
-    return;
-  }
-
+// ================== 1. 初始化 ==================
+async function init() {
+  const { data } = await client.from("employees").select("*");
   employees = data || [];
-
   renderEmployees();
 }
 
-// ================== 2. 首页 ==================
+// ================== 2. 搜索控制 ==================
+function handleSearch() {
+  if (STATE === "employees") {
+    renderEmployees();
+  } else {
+    renderStores();
+  }
+}
+
+// ================== 3. 员工列表 ==================
 function renderEmployees() {
 
+  STATE = "employees";
   document.getElementById("back").style.display = "none";
 
   const key = document.getElementById("search").value || "";
@@ -80,68 +81,87 @@ function renderEmployees() {
   `).join("");
 }
 
-// ================== 3. 点击员工（核心优化） ==================
+// ================== 4. 进入员工 ==================
 async function openEmployee(code, name) {
+
+  STATE = "stores";
+  currentEmployee = { code, name };
 
   document.getElementById("back").style.display = "block";
 
-  document.getElementById("list").innerHTML = `
-    <div>加载中...</div>
-  `;
+  document.getElementById("list").innerHTML = "加载中...";
 
-  // 🔥 关键：只查这个员工的关系
-  const { data: links, error } = await client
+  const { data: links } = await client
     .from("employee_stores")
     .select("atom_code")
     .eq("employee_code", code);
 
-  if (error) {
-    document.getElementById("list").innerHTML = `<div class="warn">${error.message}</div>`;
-    return;
-  }
+  const atomCodes = (links || []).map(i => i.atom_code);
 
-  if (!links || links.length === 0) {
-    document.getElementById("list").innerHTML = `<div class="warn">该员工暂无门店</div>`;
-    return;
-  }
-
-  const atomCodes = links.map(l => l.atom_code);
-
-  // 🔥 再查门店表（IN查询）
-  const { data: stores, error: err2 } = await client
+  const { data: stores } = await client
     .from("stores_dim")
     .select("*")
     .in("atom_code", atomCodes);
 
-  if (err2) {
-    document.getElementById("list").innerHTML = `<div class="warn">${err2.message}</div>`;
-    return;
-  }
+  renderStores(stores || []);
+}
+
+// ================== 5. 门店列表 + 开单 ==================
+function renderStores(stores = []) {
+
+  const key = document.getElementById("search").value || "";
+
+  const filtered = stores.filter(s =>
+    (s.store_name || "").includes(key)
+  );
 
   document.getElementById("list").innerHTML = `
-    <h3>${name}</h3>
+    <h3>${currentEmployee.name}</h3>
 
-    ${stores.map(s => `
+    ${filtered.map(s => `
       <div class="item">
         ${s.store_name}
         <div class="sub">${s.atom_code}</div>
-        <button onclick="openOrder('${s.atom_code}')">开单</button>
+
+        <input type="date" id="date_${s.atom_code}" />
+
+        <button onclick="submitOrder('${s.atom_code}')">开单上传</button>
       </div>
     `).join("")}
   `;
 }
 
-// ================== 4. 返回 ==================
+// ================== 6. 上传订单 ==================
+async function submitOrder(atom_code) {
+
+  const date = document.getElementById("date_" + atom_code).value;
+
+  if (!date) {
+    alert("请选择日期");
+    return;
+  }
+
+  const { error } = await client.from("orders").insert([{
+    employee_code: currentEmployee.code,
+    atom_code,
+    order_date: date,
+    created_at: new Date().toISOString()
+  }]);
+
+  if (error) {
+    alert("提交失败：" + error.message);
+    return;
+  }
+
+  alert("开单成功！");
+}
+
+// ================== 7. 返回 ==================
 function back() {
   renderEmployees();
 }
 
-// ================== 5. 开单 ==================
-function openOrder(atom) {
-  alert("开单：" + atom);
-}
-
-loadEmployees();
+init();
 
 </script>
 
