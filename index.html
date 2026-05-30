@@ -2,31 +2,29 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>系统Debug终极版</title>
+  <title>门店系统（生产版）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-    body { font-family: Arial; margin: 20px; background:#f5f5f5; }
+    body { font-family: Arial; margin:20px; background:#f5f5f5; }
     .card { background:#fff; padding:15px; border-radius:10px; }
     .item { padding:12px; border-bottom:1px solid #eee; cursor:pointer; }
     .item:hover { background:#f0f7ff; }
     input { width:100%; padding:10px; margin-bottom:10px; }
     .back { color:#1677ff; cursor:pointer; display:none; margin-bottom:10px; }
-    .warn { color:red; font-size:13px; margin:5px 0; }
-    .ok { color:green; font-size:13px; margin:5px 0; }
     .sub { font-size:12px; color:#888; }
+    .warn { color:red; font-size:12px; }
+    button { background:#1677ff; color:#fff; border:none; padding:6px 10px; border-radius:6px; }
   </style>
 </head>
 
 <body>
 
-<h2>📦 Debug终极测试版</h2>
+<h2>📦 门店系统（上线版）</h2>
 
 <div class="card">
 
   <input id="search" placeholder="搜索员工..." oninput="renderEmployees()" />
-
-  <div id="status"></div>
 
   <div id="back" class="back" onclick="back()">← 返回</div>
 
@@ -44,45 +42,34 @@ const client = supabase.createClient(
 );
 
 let employees = [];
-let stores = [];
-let relations = [];
 
-// ================== 1. 加载数据 ==================
-async function loadData() {
+// ================== 1. 只加载员工 ==================
+async function loadEmployees() {
 
-  const e = await client.from("employees").select("*");
-  const s = await client.from("stores_dim").select("*");
-  const r = await client.from("employee_stores").select("*");
+  const { data, error } = await client
+    .from("employees")
+    .select("*");
 
-  employees = e.data || [];
-  stores = s.data || [];
-  relations = r.data || [];
+  if (error) {
+    alert(error.message);
+    return;
+  }
 
-  // ===== 超级关键 debug =====
-  console.log("=== API RAW RESULT ===");
-  console.log("employees:", e);
-  console.log("stores_dim:", s);
-  console.log("employee_stores:", r);
-
-  document.getElementById("status").innerHTML = `
-    <div class="ok">employees: ${employees.length}</div>
-    <div class="ok">stores_dim: ${stores.length}</div>
-    <div class="warn">relations: ${relations.length}</div>
-  `;
+  employees = data || [];
 
   renderEmployees();
 }
 
-// ================== 2. 员工列表 ==================
+// ================== 2. 首页 ==================
 function renderEmployees() {
 
   document.getElementById("back").style.display = "none";
 
-  const keyword = document.getElementById("search").value || "";
+  const key = document.getElementById("search").value || "";
 
   const list = employees.filter(e =>
-    (e.employee_name || "").includes(keyword) ||
-    (e.employee_code || "").includes(keyword)
+    (e.employee_name || "").includes(key) ||
+    (e.employee_code || "").includes(key)
   );
 
   document.getElementById("list").innerHTML = list.map(e => `
@@ -93,45 +80,52 @@ function renderEmployees() {
   `).join("");
 }
 
-// ================== 3. 点员工 ==================
-function openEmployee(code, name) {
+// ================== 3. 点击员工（核心优化） ==================
+async function openEmployee(code, name) {
 
   document.getElementById("back").style.display = "block";
 
-  console.log("=== CLICK ===", code);
+  document.getElementById("list").innerHTML = `
+    <div>加载中...</div>
+  `;
 
-  console.log("ALL relations RAW:", relations);
+  // 🔥 关键：只查这个员工的关系
+  const { data: links, error } = await client
+    .from("employee_stores")
+    .select("atom_code")
+    .eq("employee_code", code);
 
-  const links = relations.filter(r => r.employee_code === code);
+  if (error) {
+    document.getElementById("list").innerHTML = `<div class="warn">${error.message}</div>`;
+    return;
+  }
 
-  console.log("FILTERED links:", links);
+  if (!links || links.length === 0) {
+    document.getElementById("list").innerHTML = `<div class="warn">该员工暂无门店</div>`;
+    return;
+  }
 
-  const list = links.map(l => {
+  const atomCodes = links.map(l => l.atom_code);
 
-    const store = stores.find(s =>
-      String(s.atom_code) === String(l.atom_code)
-    );
+  // 🔥 再查门店表（IN查询）
+  const { data: stores, error: err2 } = await client
+    .from("stores_dim")
+    .select("*")
+    .in("atom_code", atomCodes);
 
-    if (!store) {
-      console.log("❌ missing store:", l.atom_code);
-    }
-
-    return store;
-  }).filter(Boolean);
-
-  console.log("FINAL STORES:", list);
+  if (err2) {
+    document.getElementById("list").innerHTML = `<div class="warn">${err2.message}</div>`;
+    return;
+  }
 
   document.getElementById("list").innerHTML = `
     <h3>${name}</h3>
 
-    ${links.length === 0 ? `<div class="warn">⚠️ relations为空（问题就在这里）</div>` : ""}
-
-    ${list.length === 0 && links.length > 0 ? `<div class="warn">⚠️ 有关系但找不到门店</div>` : ""}
-
-    ${list.map(s => `
+    ${stores.map(s => `
       <div class="item">
         ${s.store_name}
         <div class="sub">${s.atom_code}</div>
+        <button onclick="openOrder('${s.atom_code}')">开单</button>
       </div>
     `).join("")}
   `;
@@ -142,7 +136,12 @@ function back() {
   renderEmployees();
 }
 
-loadData();
+// ================== 5. 开单 ==================
+function openOrder(atom) {
+  alert("开单：" + atom);
+}
+
+loadEmployees();
 
 </script>
 
