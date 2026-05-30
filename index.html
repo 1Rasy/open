@@ -1,1027 +1,152 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh">
 <head>
+  <meta charset="UTF-8" />
+  <title>门店库存&开单系统</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<meta charset="UTF-8" />
-
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-/>
-
-<title>快消开单系统</title>
-
-<style>
-
-*{
-  box-sizing:border-box;
-  -webkit-tap-highlight-color: transparent;
-  font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;
-}
-
-body{
-  margin:0;
-  background:#f5f5f5;
-  color:#111;
-  touch-action:manipulation;
-}
-
-button,
-div,
-input{
-  touch-action:manipulation;
-}
-
-.header{
-  position:sticky;
-  top:0;
-  z-index:10;
-
-  background:white;
-
-  padding:14px;
-
-  border-bottom:1px solid #ddd;
-
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-}
-
-.title{
-  font-size:20px;
-  font-weight:bold;
-}
-
-.container{
-  padding:12px;
-}
-
-.card{
-  background:white;
-  padding:14px;
-  border-radius:14px;
-  margin-bottom:10px;
-  cursor:pointer;
-}
-
-.search{
-  width:100%;
-  padding:12px;
-  border-radius:12px;
-  border:1px solid #ccc;
-  margin-bottom:12px;
-  font-size:16px;
-}
-
-.store-name{
-  font-size:16px;
-  font-weight:bold;
-}
-
-.store-code{
-  margin-top:4px;
-  font-size:13px;
-  color:#666;
-}
-
-.btn{
-  border:none;
-  background:black;
-  color:white;
-  padding:10px 14px;
-  border-radius:10px;
-  cursor:pointer;
-}
-
-.back{
-  margin-bottom:12px;
-  font-weight:bold;
-  cursor:pointer;
-}
-
-.history{
-  background:white;
-  border-radius:12px;
-  padding:12px;
-  margin-bottom:10px;
-}
-
-.section-title{
-  margin:16px 0 10px;
-  font-size:18px;
-  font-weight:bold;
-}
-
-.product-select{
-  background:white;
-  border-radius:12px;
-  padding:12px;
-  margin-bottom:10px;
-
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.checkbox{
-  width:24px;
-  height:24px;
-  border-radius:6px;
-  border:2px solid black;
-
-  display:flex;
-  align-items:center;
-  justify-content:center;
-}
-
-.checkbox.active{
-  background:black;
-  color:white;
-}
-
-.selected-product{
-  background:white;
-  border-radius:12px;
-  padding:12px;
-  margin-bottom:10px;
-}
-
-.product-name{
-  font-weight:bold;
-  font-size:16px;
-}
-
-.product-rule{
-  margin-top:4px;
-  color:#666;
-  font-size:13px;
-}
-
-.qty-row{
-  margin-top:12px;
-
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.qty-controls{
-  display:flex;
-  align-items:center;
-  gap:8px;
-}
-
-.qty-btn{
-  width:32px;
-  height:32px;
-  border-radius:50%;
-  border:none;
-  background:black;
-  color:white;
-  font-size:18px;
-}
-
-.qty-display{
-  min-width:70px;
-  text-align:center;
-}
-
-.stock-card{
-  background:white;
-  border-radius:12px;
-  padding:12px;
-  margin-bottom:10px;
-}
-
-.stock-top{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
-
-.line{
-  margin-top:12px;
-  display:flex;
-  gap:8px;
-}
-
-.number-input{
-  width:70px;
-  padding:10px;
-  border-radius:10px;
-  border:1px solid #ccc;
-}
-
-.small-btn{
-  border:none;
-  background:black;
-  color:white;
-  border-radius:10px;
-  padding:10px 14px;
-}
-
-.date-input{
-  width:100%;
-  padding:12px;
-  border-radius:12px;
-  border:1px solid #ccc;
-  margin-bottom:12px;
-  font-size:16px;
-}
-
-.empty{
-  color:#888;
-  padding:20px 0;
-  text-align:center;
-}
-
-</style>
-
+  <style>
+    body {
+      font-family: Arial;
+      margin: 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      margin-bottom: 10px;
+    }
+    .card {
+      background: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+    }
+    button {
+      padding: 6px 10px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .btn {
+      background: #1677ff;
+      color: white;
+    }
+    .btn:hover {
+      background: #0f5bd6;
+    }
+    .row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    input {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      flex: 1;
+    }
+  </style>
 </head>
 
 <body>
 
-<div id="app"></div>
+<h1>📦 门店库存 & 开单系统</h1>
+
+<div class="card">
+  <h3>门店 / 员工列表</h3>
+
+  <div class="row">
+    <input id="search" placeholder="搜索门店或员工..." />
+    <button class="btn" onclick="loadData()">刷新</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ATOM编码</th>
+        <th>门店名称</th>
+        <th>员工工号</th>
+        <th>员工姓名</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+</div>
+
+<div class="card">
+  <h3>功能入口（后续扩展）</h3>
+  <button class="btn">➕ 新建开单</button>
+  <button class="btn">📊 库存管理</button>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+  // ====== 1. Supabase 初始化 ======
+  const SUPABASE_URL = "https://mnmzqmqxdzagpounvchn.supabase.co/rest/v1/";
+  const SUPABASE_ANON_KEY = "sb_publishable_-AQkn3K06H0cykzBsM_pGg_J1lYgIPF";
 
-let lastTouchEnd = 0;
+  const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-document.addEventListener('touchend', function (event) {
+  // ====== 2. 加载数据 ======
+  async function loadData() {
+    const search = document.getElementById("search").value;
 
-  const now = Date.now();
+    let query = client
+      .from("your_table_name")  // ← 改成你的表名
+      .select("*");
 
-  if (now - lastTouchEnd <= 300) {
-    event.preventDefault();
-  }
+    const { data, error } = await query;
 
-  lastTouchEnd = now;
-
-}, { passive: false });
-
-const db = {
-
-  products:[
-
-    {
-      name:"奥利奥97g",
-      unit:"条",
-      caseUnit:"件",
-      perCase:24
-    },
-
-    {
-      name:"炫迈西瓜",
-      unit:"个",
-      caseUnit:"盒",
-      perCase:20
-    },
-
-    {
-      name:"炫迈葡萄",
-      unit:"个",
-      caseUnit:"盒",
-      perCase:20
-    }
-
-  ],
-
-  salespersons:[
-
-    {
-      id:1,
-      name:"张三",
-
-      stock:{
-        "奥利奥97g":49,
-        "炫迈西瓜":63,
-        "炫迈葡萄":12
-      },
-
-      stores:[
-
-        {
-          id:101,
-          code:"FS001",
-          name:"美宜佳西樵店",
-
-          history:[
-
-            {
-              date:"2026-05-23",
-
-              items:[
-                {
-                  product:"奥利奥97g",
-                  total:27
-                }
-              ]
-            }
-
-          ]
-        },
-
-        {
-          id:102,
-          code:"FS002",
-          name:"天天便利店",
-          history:[]
-        }
-
-      ]
-    },
-
-    {
-      id:2,
-      name:"李四",
-
-      stock:{
-        "奥利奥97g":24,
-        "炫迈西瓜":20,
-        "炫迈葡萄":40
-      },
-
-      stores:[
-
-        {
-          id:201,
-          code:"GZ001",
-          name:"华润万家",
-          history:[]
-        }
-
-      ]
-    }
-
-  ]
-};
-
-const app = document.getElementById("app");
-
-let currentSalesperson = null;
-let currentStore = null;
-
-function getProduct(name){
-
-  return db.products.find(p => p.name === name);
-}
-
-function formatStock(total, perCase, caseUnit, unit){
-
-  const cases = Math.floor(total / perCase);
-
-  const singles = total % perCase;
-
-  return `${cases}${caseUnit}${singles}${unit}`;
-}
-
-function renderHome(){
-
-  app.innerHTML = `
-
-    <div class="header">
-
-      <div class="title">
-        选择业务员
-      </div>
-
-    </div>
-
-    <div class="container">
-
-      ${db.salespersons.map(sp => `
-
-        <div
-          class="card"
-          onclick="openSalesperson(${sp.id})"
-        >
-
-          ${sp.name}
-
-        </div>
-
-      `).join("")}
-
-    </div>
-
-  `;
-}
-
-window.openSalesperson = function(id){
-
-  currentSalesperson =
-    db.salespersons.find(s => s.id === id);
-
-  renderSalespersonPage();
-}
-
-function renderSalespersonPage(){
-
-  app.innerHTML = `
-
-    <div class="header">
-
-      <div class="title">
-        ${currentSalesperson.name}
-      </div>
-
-      <button
-        class="btn"
-        onclick="renderStockPage()"
-      >
-        库存管理
-      </button>
-
-    </div>
-
-    <div class="container">
-
-      <input
-        id="storeSearch"
-        class="search"
-        placeholder="搜索店铺名称或编号"
-        oninput="searchStores()"
-      >
-
-      <div id="storeList">
-
-        ${renderStoreList(currentSalesperson.stores)}
-
-      </div>
-
-    </div>
-
-  `;
-}
-
-function renderStoreList(stores){
-
-  return stores.map(store => `
-
-    <div
-      class="card"
-      onclick="openStore(${store.id})"
-    >
-
-      <div class="store-name">
-        ${store.name}
-      </div>
-
-      <div class="store-code">
-        ${store.code}
-      </div>
-
-    </div>
-
-  `).join("");
-}
-
-window.searchStores = function(){
-
-  const keyword =
-    document.getElementById("storeSearch")
-    .value
-    .toLowerCase();
-
-  const filtered =
-    currentSalesperson.stores.filter(store => {
-
-      return store.name.toLowerCase().includes(keyword)
-        || store.code.toLowerCase().includes(keyword);
-
-    });
-
-  document.getElementById("storeList").innerHTML =
-    renderStoreList(filtered);
-}
-
-window.openStore = function(id){
-
-  currentStore =
-    currentSalesperson.stores.find(s => s.id === id);
-
-  renderStorePage();
-}
-
-function renderStorePage(){
-
-  app.innerHTML = `
-
-    <div class="header">
-
-      <div>
-
-        <div class="title">
-          ${currentStore.name}
-        </div>
-
-        <div>
-          ${currentStore.code}
-        </div>
-
-      </div>
-
-      <button
-        class="btn"
-        onclick="renderNewOrderPage()"
-      >
-        新增记录
-      </button>
-
-    </div>
-
-    <div class="container">
-
-      <div
-        class="back"
-        onclick="renderSalespersonPage()"
-      >
-        ← 返回
-      </div>
-
-      <div class="section-title">
-        历史记录
-      </div>
-
-      ${currentStore.history.length === 0
-
-        ? `<div class="empty">暂无记录</div>`
-
-        : currentStore.history.map(h => `
-
-          <div class="history">
-
-            <div>
-              <strong>${h.date}</strong>
-            </div>
-
-            <div style="margin-top:8px;">
-
-              ${h.items.map(item => {
-
-                const p = getProduct(item.product);
-
-                return `
-
-                  <div>
-
-                    ${item.product}
-                    -
-                    ${formatStock(
-                      item.total,
-                      p.perCase,
-                      p.caseUnit,
-                      p.unit
-                    )}
-
-                  </div>
-
-                `;
-              }).join("")}
-
-            </div>
-
-          </div>
-
-        `).join("")
-      }
-
-    </div>
-
-  `;
-}
-
-function renderNewOrderPage(){
-
-  const selectedProducts = [];
-
-  const order = {};
-
-  app.innerHTML = `
-
-    <div class="header">
-
-      <div class="title">
-        新增记录
-      </div>
-
-      <button
-        class="btn"
-        onclick="saveOrder()"
-      >
-        保存
-      </button>
-
-    </div>
-
-    <div class="container">
-
-      <div
-        class="back"
-        onclick="renderStorePage()"
-      >
-        ← 返回
-      </div>
-
-      <input
-        type="date"
-        id="orderDate"
-        class="date-input"
-      >
-
-      <input
-        class="search"
-        id="productSearch"
-        placeholder="搜索商品"
-        oninput="searchProducts()"
-      >
-
-      <div id="productSelectList"></div>
-
-      <div class="section-title">
-        已选商品
-      </div>
-
-      <div id="selectedProducts"></div>
-
-    </div>
-
-  `;
-
-  document.getElementById("orderDate").value =
-    new Date().toISOString().split("T")[0];
-
-  function renderProductSelectList(products){
-
-    document.getElementById("productSelectList").innerHTML =
-
-      products.map(product => {
-
-        const active =
-          selectedProducts.includes(product.name);
-
-        return `
-
-          <div
-            class="product-select"
-            onclick="toggleProduct('${product.name}')"
-          >
-
-            <div>
-
-              <div class="product-name">
-                ${product.name}
-              </div>
-
-              <div class="product-rule">
-                1${product.caseUnit}
-                =
-                ${product.perCase}${product.unit}
-              </div>
-
-            </div>
-
-            <div class="checkbox ${active ? "active" : ""}">
-              ${active ? "✓" : ""}
-            </div>
-
-          </div>
-
-        `;
-      }).join("");
-  }
-
-  function renderSelectedProducts(){
-
-    const html = selectedProducts.map(name => {
-
-      const p = getProduct(name);
-
-      if(!order[name]){
-
-        order[name] = {
-          caseQty:0,
-          singleQty:0
-        };
-      }
-
-      return `
-
-        <div class="selected-product">
-
-          <div class="product-name">
-            ${p.name}
-          </div>
-
-          <div class="product-rule">
-            1${p.caseUnit}
-            =
-            ${p.perCase}${p.unit}
-          </div>
-
-          <div class="qty-row">
-
-            <div>${p.caseUnit}</div>
-
-            <div class="qty-controls">
-
-              <button
-                class="qty-btn"
-                onclick="changeQty('${name}','case',-1)"
-              >
-                -
-              </button>
-
-              <div
-                class="qty-display"
-                id="case-${name}"
-              >
-                ${order[name].caseQty}
-              </div>
-
-              <button
-                class="qty-btn"
-                onclick="changeQty('${name}','case',1)"
-              >
-                +
-              </button>
-
-            </div>
-
-          </div>
-
-          <div class="qty-row">
-
-            <div>${p.unit}</div>
-
-            <div class="qty-controls">
-
-              <button
-                class="qty-btn"
-                onclick="changeQty('${name}','single',-1)"
-              >
-                -
-              </button>
-
-              <div
-                class="qty-display"
-                id="single-${name}"
-              >
-                ${order[name].singleQty}
-              </div>
-
-              <button
-                class="qty-btn"
-                onclick="changeQty('${name}','single',1)"
-              >
-                +
-              </button>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      `;
-    }).join("");
-
-    document.getElementById("selectedProducts").innerHTML =
-      html || `<div class="empty">请选择商品</div>`;
-  }
-
-  window.toggleProduct = function(name){
-
-    const index =
-      selectedProducts.indexOf(name);
-
-    if(index > -1){
-
-      selectedProducts.splice(index,1);
-
-    }else{
-
-      selectedProducts.push(name);
-    }
-
-    renderProductSelectList(db.products);
-
-    renderSelectedProducts();
-  }
-
-  window.searchProducts = function(){
-
-    const keyword =
-      document.getElementById("productSearch")
-      .value
-      .toLowerCase();
-
-    const filtered =
-      db.products.filter(p =>
-        p.name.toLowerCase().includes(keyword)
-      );
-
-    renderProductSelectList(filtered);
-  }
-
-  window.changeQty = function(name,type,delta){
-
-    if(type === "case"){
-
-      order[name].caseQty += delta;
-
-      if(order[name].caseQty < 0){
-        order[name].caseQty = 0;
-      }
-
-      document.getElementById(`case-${name}`).innerText =
-        order[name].caseQty;
-
-    }else{
-
-      order[name].singleQty += delta;
-
-      if(order[name].singleQty < 0){
-        order[name].singleQty = 0;
-      }
-
-      document.getElementById(`single-${name}`).innerText =
-        order[name].singleQty;
-    }
-  }
-
-  window.saveOrder = function(){
-
-    const items = [];
-
-    selectedProducts.forEach(name => {
-
-      const p = getProduct(name);
-
-      const data = order[name];
-
-      const total =
-        data.caseQty * p.perCase
-        + data.singleQty;
-
-      if(total > 0){
-
-        items.push({
-          product:name,
-          total
-        });
-
-        currentSalesperson.stock[name] -= total;
-
-        if(currentSalesperson.stock[name] < 0){
-          currentSalesperson.stock[name] = 0;
-        }
-      }
-    });
-
-    if(items.length === 0){
-
-      alert("请选择商品并填写数量");
-
+    if (error) {
+      alert("加载失败：" + error.message);
       return;
     }
 
-    currentStore.history.unshift({
-
-      date:
-        document.getElementById("orderDate").value,
-
-      items
-
-    });
-
-    alert("保存成功");
-
-    renderStorePage();
+    renderTable(data);
   }
 
-  renderProductSelectList(db.products);
+  // ====== 3. 渲染表格 ======
+  function renderTable(data) {
+    const tbody = document.getElementById("tableBody");
+    tbody.innerHTML = "";
 
-  renderSelectedProducts();
-}
+    data.forEach(row => {
+      const tr = document.createElement("tr");
 
-window.renderStockPage = function(){
+      tr.innerHTML = `
+        <td>${row.atom_code || ""}</td>
+        <td>${row.store_name || ""}</td>
+        <td>${row.employee_code || ""}</td>
+        <td>${row.employee_name || ""}</td>
+        <td>
+          <button class="btn" onclick="openOrder('${row.atom_code}')">开单</button>
+        </td>
+      `;
 
-  app.innerHTML = `
+      tbody.appendChild(tr);
+    });
+  }
 
-    <div class="header">
+  // ====== 4. 开单入口（后面你要做核心） ======
+  function openOrder(atom_code) {
+    alert("进入开单页面，门店：" + atom_code);
+    // 后面可以跳转：
+    // window.location.href = "order.html?atom=" + atom_code;
+  }
 
-      <div class="title">
-        库存管理
-      </div>
-
-      <button
-        class="btn"
-        onclick="renderSalespersonPage()"
-      >
-        返回
-      </button>
-
-    </div>
-
-    <div class="container">
-
-      ${Object.entries(currentSalesperson.stock).map(([name,total]) => {
-
-        const p = getProduct(name);
-
-        return `
-
-          <div class="stock-card">
-
-            <div class="stock-top">
-
-              <div>
-
-                <div class="product-name">
-                  ${name}
-                </div>
-
-                <div class="product-rule">
-
-                  当前库存：
-
-                  ${formatStock(
-                    total,
-                    p.perCase,
-                    p.caseUnit,
-                    p.unit
-                  )}
-
-                </div>
-
-              </div>
-
-            </div>
-
-            <div class="line">
-
-              <input
-                class="number-input"
-                type="number"
-                id="caseInput-${name}"
-                placeholder="${p.caseUnit}"
-              >
-
-              <input
-                class="number-input"
-                type="number"
-                id="singleInput-${name}"
-                placeholder="${p.unit}"
-              >
-
-              <button
-                class="small-btn"
-                onclick="addStock('${name}')"
-              >
-                入库
-              </button>
-
-            </div>
-
-          </div>
-
-        `;
-      }).join("")}
-
-    </div>
-
-  `;
-}
-
-window.addStock = function(name){
-
-  const p = getProduct(name);
-
-  const caseQty =
-    Number(
-      document.getElementById(`caseInput-${name}`)
-      .value || 0
-    );
-
-  const singleQty =
-    Number(
-      document.getElementById(`singleInput-${name}`)
-      .value || 0
-    );
-
-  const total =
-    caseQty * p.perCase
-    + singleQty;
-
-  currentSalesperson.stock[name] += total;
-
-  renderStockPage();
-}
-
-renderHome();
-
+  // 初始加载
+  loadData();
 </script>
 
 </body>
