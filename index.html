@@ -2,74 +2,30 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>门店开单系统 V4（标准结构）</title>
+  <title>门店系统 Debug版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
-    body {
-      font-family: Arial;
-      margin: 20px;
-      background: #f5f5f5;
-    }
-
-    h2 { margin-bottom: 10px; }
-
-    .card {
-      background: white;
-      padding: 15px;
-      border-radius: 10px;
-    }
-
-    input {
-      width: 100%;
-      padding: 10px;
-      margin-bottom: 10px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-    }
-
-    .item {
-      padding: 12px;
-      border-bottom: 1px solid #eee;
-      cursor: pointer;
-    }
-
-    .item:hover {
-      background: #f0f7ff;
-    }
-
-    .btn {
-      background: #1677ff;
-      color: white;
-      border: none;
-      padding: 6px 10px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    .back {
-      color: #1677ff;
-      cursor: pointer;
-      margin-bottom: 10px;
-      display: none;
-    }
-
-    .sub {
-      font-size: 12px;
-      color: #888;
-    }
+    body { font-family: Arial; margin: 20px; background:#f5f5f5; }
+    .card { background:#fff; padding:15px; border-radius:10px; }
+    .item { padding:12px; border-bottom:1px solid #eee; cursor:pointer; }
+    .item:hover { background:#f0f7ff; }
+    input { width:100%; padding:10px; margin-bottom:10px; }
+    .btn { background:#1677ff; color:#fff; padding:6px 10px; border:none; border-radius:6px; }
+    .back { color:#1677ff; cursor:pointer; display:none; margin-bottom:10px; }
+    .sub { font-size:12px; color:#888; }
   </style>
 </head>
 
 <body>
 
-<h2>📦 门店开单系统 V4（标准版）</h2>
+<h2>📦 门店系统 Debug版</h2>
 
 <div class="card">
 
-  <input id="search" placeholder="搜索员工 / 门店..." oninput="renderEmployees()" />
+  <input id="search" placeholder="搜索员工..." oninput="renderEmployees()" />
 
-  <div id="back" class="back" onclick="back()">← 返回员工列表</div>
+  <div id="back" class="back" onclick="back()">← 返回</div>
 
   <div id="list"></div>
 
@@ -88,7 +44,7 @@ let employees = [];
 let stores = [];
 let relations = [];
 
-// ================== 1. 拉取三张表 ==================
+// ================== 1. 加载数据 ==================
 async function loadData() {
 
   const e = await client.from("employees").select("*");
@@ -99,49 +55,69 @@ async function loadData() {
   stores = s.data || [];
   relations = r.data || [];
 
+  console.log("===== DATA CHECK =====");
   console.log("employees:", employees.length);
-  console.log("stores:", stores.length);
-  console.log("relations:", relations.length);
+  console.log("stores_dim:", stores.length);
+  console.log("employee_stores:", relations.length);
+
+  console.log("sample store:", stores[0]);
+  console.log("sample relation:", relations[0]);
 
   renderEmployees();
 }
 
-// ================== 2. 首页：员工列表 ==================
+// ================== 2. 员工列表 ==================
 function renderEmployees() {
+
   document.getElementById("back").style.display = "none";
 
   const keyword = document.getElementById("search").value || "";
 
-  let list = employees.filter(e =>
+  const list = employees.filter(e =>
     (e.employee_name || "").includes(keyword) ||
     (e.employee_code || "").includes(keyword)
   );
 
   document.getElementById("list").innerHTML = list.map(e => `
     <div class="item" onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
-      👤 ${e.employee_name}
+      ${e.employee_name}
       <div class="sub">${e.employee_code}</div>
     </div>
   `).join("");
 }
 
-// ================== 3. 点员工 → 门店 ==================
+// ================== 3. 进入员工 ==================
 function openEmployee(code, name) {
 
   document.getElementById("back").style.display = "block";
 
   const links = relations.filter(r => r.employee_code === code);
 
+  console.log("===== CLICK EMPLOYEE =====");
+  console.log("employee:", code);
+  console.log("relations:", links);
+
   const list = links.map(l => {
-    return stores.find(s => s.atom_code === l.atom_code);
+
+    const store = stores.find(s => s.atom_code === l.atom_code);
+
+    if (!store) {
+      console.log("❌ 找不到门店:", l.atom_code);
+    }
+
+    return store;
   }).filter(Boolean);
 
+  console.log("matched stores:", list);
+
   document.getElementById("list").innerHTML = `
-    <h3>👤 ${name}</h3>
+    <h3>${name}</h3>
+
+    ${list.length === 0 ? `<div>⚠️ 没有匹配到门店（看console）</div>` : ""}
 
     ${list.map(s => `
       <div class="item">
-        🏪 ${s.store_name}
+        ${s.store_name}
         <div class="sub">${s.atom_code}</div>
         <button class="btn" onclick="openOrder('${s.atom_code}')">开单</button>
       </div>
@@ -156,7 +132,7 @@ function back() {
 
 // ================== 5. 开单 ==================
 function openOrder(atom) {
-  alert("进入开单：" + atom);
+  alert("开单：" + atom);
 }
 
 loadData();
