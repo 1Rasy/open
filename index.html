@@ -3,167 +3,218 @@
 <head>
 <meta charset="UTF-8" />
 <title>门店开单系统</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 
 <style>
-body { font-family: Arial; margin:20px; background:#f5f5f5; }
-.card { background:#fff; padding:15px; border-radius:10px; }
-.item { padding:12px; border-bottom:1px solid #eee; cursor:pointer; }
-.item:hover { background:#f0f7ff; }
-input, select { width:100%; padding:10px; margin-bottom:10px; }
-.back { color:#1677ff; cursor:pointer; display:none; margin-bottom:10px; }
-.sub { font-size:12px; color:#888; }
+body { font-family: Arial; margin:0; background:#f5f5f5; }
+.header { padding:12px; font-size:18px; background:#fff; position:sticky; top:0; }
+.card { background:#fff; margin:10px; padding:10px; border-radius:10px; }
+.item { padding:10px; border-bottom:1px solid #eee; }
+.item:active { background:#f0f7ff; }
+input, button { font-size:16px; }
+input { width:100%; padding:8px; margin:5px 0; }
 button { background:#1677ff; color:#fff; border:none; padding:6px 10px; border-radius:6px; }
+.smallbtn { background:#eee; color:#333; padding:4px 6px; margin-left:6px; }
+.brand { font-weight:bold; margin-top:10px; }
+.row { display:flex; justify-content:space-between; align-items:center; }
+.sub { font-size:12px; color:#888; }
+.hide { display:none; }
 </style>
 </head>
 
 <body>
 
-<h2>📦 门店开单系统</h2>
+<div class="header">📦 门店开单系统</div>
 
 <div class="card">
-
 <input id="search" placeholder="搜索..." oninput="handleSearch()" />
-
-<div id="back" class="back" onclick="back()">← 返回</div>
-
+<div id="back" class="sub hide" onclick="goBack()">← 返回</div>
 <div id="list"></div>
-
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
 <script>
 
-const client = supabase.createClient(
-  "https://mnmzqmqxdzagpounvchn.supabase.co",
-  "sb_publishable_-AQkn3K06H0cykzBsM_pGg_J1lYgIPF"
-);
+const SUPABASE_URL = "https://mnmzqmqxdzagpounvchn.supabase.co";
+const SUPABASE_KEY = "sb_publishable_-AQkn3K06H0cykzBsM_pGg_J1lYgIPF";
+const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+let STATE = "EMP";
 let employees = [];
-let STATE = "employees";
+let stores = [];
 let currentEmployee = null;
+let currentStores = [];
+let products = [];
 
-// ================== 1. 初始化 ==================
-async function init() {
-  const { data } = await client.from("employees").select("*");
-  employees = data || [];
+// init
+init();
+async function init(){
+  const e = await client.from('employees').select('*');
+  const s = await client.from('stores_dim').select('*');
+  const p = await client.from('products').select('*');
+
+  employees = e.data || [];
+  stores = s.data || [];
+  products = p.data || [];
+
   renderEmployees();
 }
 
-// ================== 2. 搜索控制 ==================
-function handleSearch() {
-  if (STATE === "employees") {
-    renderEmployees();
-  } else {
-    renderStores();
-  }
+function handleSearch(){
+  if(STATE==='EMP') renderEmployees();
+  else renderStores();
 }
 
-// ================== 3. 员工列表 ==================
-function renderEmployees() {
-
-  STATE = "employees";
-  document.getElementById("back").style.display = "none";
-
-  const key = document.getElementById("search").value || "";
-
-  const list = employees.filter(e =>
-    (e.employee_name || "").includes(key) ||
-    (e.employee_code || "").includes(key)
+// EMPLOYEES
+function renderEmployees(){
+  STATE='EMP';
+  document.getElementById('back').classList.add('hide');
+  const k = search.value;
+  const list = employees.filter(e=>
+    (e.employee_name||'').includes(k)||
+    (e.employee_code||'').includes(k)
   );
 
-  document.getElementById("list").innerHTML = list.map(e => `
-    <div class="item" onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
+  list.forEach;
+
+  document.getElementById('list').innerHTML = list.map(e=>`
+    <div class='item' onclick="openEmp('${e.employee_code}','${e.employee_name}')">
       ${e.employee_name}
-      <div class="sub">${e.employee_code}</div>
+      <div class='sub'>${e.employee_code}</div>
     </div>
-  `).join("");
+  `).join('');
 }
 
-// ================== 4. 进入员工 ==================
-async function openEmployee(code, name) {
+// STORES
+async function openEmp(code,name){
+  STATE='STORE';
+  currentEmployee={code,name};
+  document.getElementById('back').classList.remove('hide');
+  document.getElementById('list').innerHTML='加载中...';
 
-  STATE = "stores";
-  currentEmployee = { code, name };
+  const r = await client.from('employee_stores')
+    .select('atom_code')
+    .eq('employee_code',code);
 
-  document.getElementById("back").style.display = "block";
+  const codes=(r.data||[]).map(i=>i.atom_code);
 
-  document.getElementById("list").innerHTML = "加载中...";
+  currentStores = stores.filter(s=>codes.includes(s.atom_code));
 
-  const { data: links } = await client
-    .from("employee_stores")
-    .select("atom_code")
-    .eq("employee_code", code);
-
-  const atomCodes = (links || []).map(i => i.atom_code);
-
-  const { data: stores } = await client
-    .from("stores_dim")
-    .select("*")
-    .in("atom_code", atomCodes);
-
-  renderStores(stores || []);
+  renderStores();
 }
 
-// ================== 5. 门店列表 + 开单 ==================
-function renderStores(stores = []) {
+function renderStores(){
+  const k = search.value;
 
-  const key = document.getElementById("search").value || "";
-
-  const filtered = stores.filter(s =>
-    (s.store_name || "").includes(key)
+  const f = currentStores.filter(s=>
+    (s.store_name||'').includes(k)
   );
 
-  document.getElementById("list").innerHTML = `
-    <h3>${currentEmployee.name}</h3>
-
-    ${filtered.map(s => `
-      <div class="item">
+  document.getElementById('list').innerHTML = `
+    <div class='sub'>${currentEmployee.name}</div>
+    ${f.map(s=>`
+      <div class='item' onclick="openOrder('${s.atom_code}','${s.store_name}')">
         ${s.store_name}
-        <div class="sub">${s.atom_code}</div>
-
-        <input type="date" id="date_${s.atom_code}" />
-
-        <button onclick="submitOrder('${s.atom_code}')">开单上传</button>
+        <div class='sub'>${s.atom_code}</div>
       </div>
-    `).join("")}
+    `).join('')}
   `;
 }
 
-// ================== 6. 上传订单 ==================
-async function submitOrder(atom_code) {
+// ORDER
+function openOrder(atom,name){
+  STATE='ORDER';
+  document.getElementById('back').classList.remove('hide');
 
-  const date = document.getElementById("date_" + atom_code).value;
+  const today = new Date().toISOString().split('T')[0];
 
-  if (!date) {
-    alert("请选择日期");
-    return;
-  }
+  const grouped = {};
+  products.forEach(p=>{
+    if(!grouped[p.brand]) grouped[p.brand]=[];
+    grouped[p.brand].push(p);
+  });
 
-  const { error } = await client.from("orders").insert([{
-    employee_code: currentEmployee.code,
-    atom_code,
-    order_date: date,
-    created_at: new Date().toISOString()
-  }]);
+  window.orderData={atom,name,date:today,items:{}};
 
-  if (error) {
-    alert("提交失败：" + error.message);
-    return;
-  }
+  document.getElementById('list').innerHTML = `
+    <div class='row'>
+      📅 <span id='dateText'>${today}</span>
+      <button class='smallbtn' onclick='editDate()'>修改</button>
+    </div>
 
-  alert("开单成功！");
+    ${Object.keys(grouped).map(b=>`
+      <div class='brand'>${b}</div>
+      ${grouped[b].map(p=>`
+        <div class='item'>
+          ${p.spec}${p.product_name}
+          <div class='sub'>默认 ${p.default_price}元</div>
+
+          数量 <button onclick="addQty('${p.id}',-1)">-</button>
+          <span id='q_${p.id}'>0</span>
+          <button onclick="addQty('${p.id}',1)">+</button>
+
+          价格 <button onclick="addPrice('${p.id}',-0.1)">-</button>
+          <span id='p_${p.id}'>${p.default_price}</span>
+          <button onclick="addPrice('${p.id}',0.1)">+</button>
+        </div>
+      `).join('')}
+    `).join('')
+
+    <div style='margin-top:10px'>
+      <button onclick='submitOrder()'>提交订单</button>
+    </div>
+  `;
 }
 
-// ================== 7. 返回 ==================
-function back() {
+function addQty(id,v){
+  if(!orderData.items[id]) orderData.items[id]={qty:0,price:0};
+  orderData.items[id].qty=Math.max(0,(orderData.items[id].qty||0)+v);
+  document.getElementById('q_'+id).innerText=orderData.items[id].qty;
+}
+
+function addPrice(id,v){
+  const base = products.find(p=>p.id==id).default_price;
+  if(!orderData.items[id]) orderData.items[id]={qty:0,price:base};
+  orderData.items[id].price = +(orderData.items[id].price+v).toFixed(1);
+  document.getElementById('p_'+id).innerText=orderData.items[id].price;
+}
+
+function editDate(){
+  const d = prompt('修改日期',orderData.date);
+  if(d){orderData.date=d;document.getElementById('dateText').innerText=d;}
+}
+
+async function submitOrder(){
+  const { data: o } = await client.from('orders').insert({
+    employee_code: currentEmployee.code,
+    atom_code: orderData.atom,
+    order_date: orderData.date
+  }).select().single();
+
+  const items=[];
+  Object.keys(orderData.items).forEach(id=>{
+    const it=orderData.items[id];
+    if(it.qty>0){
+      items.push({
+        order_id:o.id,
+        product_id:id,
+        qty:it.qty,
+        price:it.price
+      });
+    }
+  });
+
+  await client.from('order_items').insert(items);
+
+  alert('提交成功');
   renderEmployees();
 }
 
-init();
+function goBack(){
+  if(STATE==='ORDER') openEmp(currentEmployee.code,currentEmployee.name);
+  else if(STATE==='STORE') renderEmployees();
+}
 
 </script>
-
 </body>
 </html>
