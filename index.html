@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>门店开单系统V3</title>
+  <title>门店开单系统 V4（标准结构）</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
@@ -12,9 +12,7 @@
       background: #f5f5f5;
     }
 
-    h2 {
-      margin-bottom: 10px;
-    }
+    h2 { margin-bottom: 10px; }
 
     .card {
       background: white;
@@ -47,7 +45,6 @@
       padding: 6px 10px;
       border-radius: 6px;
       cursor: pointer;
-      margin-top: 5px;
     }
 
     .back {
@@ -66,11 +63,11 @@
 
 <body>
 
-<h2>📦 门店开单系统 V3（稳定版）</h2>
+<h2>📦 门店开单系统 V4（标准版）</h2>
 
 <div class="card">
 
-  <input id="search" placeholder="搜索员工 / 门店 / 编码..." oninput="renderEmployees()" />
+  <input id="search" placeholder="搜索员工 / 门店..." oninput="renderEmployees()" />
 
   <div id="back" class="back" onclick="back()">← 返回员工列表</div>
 
@@ -81,84 +78,72 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+
 const client = supabase.createClient(
   "https://mnmzqmqxdzagpounvchn.supabase.co",
   "sb_publishable_-AQkn3K06H0cykzBsM_pGg_J1lYgIPF"
 );
 
-let rawData = [];
+let employees = [];
+let stores = [];
+let relations = [];
 
-// ================== 1. 拉取数据 ==================
+// ================== 1. 拉取三张表 ==================
 async function loadData() {
-  const { data, error } = await client
-    .from("stores")   // 你当前唯一真实表
-    .select("*")
-    .range(0, 99999); // 🔥 解决1000限制
 
-  if (error) {
-    alert("加载失败：" + error.message);
-    return;
-  }
+  const e = await client.from("employees").select("*");
+  const s = await client.from("stores_dim").select("*");
+  const r = await client.from("employee_stores").select("*");
 
-  rawData = data || [];
+  employees = e.data || [];
+  stores = s.data || [];
+  relations = r.data || [];
 
-  console.log("TOTAL:", rawData.length);
-  console.log("SAMPLE:", rawData.slice(0, 3));
+  console.log("employees:", employees.length);
+  console.log("stores:", stores.length);
+  console.log("relations:", relations.length);
 
   renderEmployees();
 }
 
-// ================== 2. 首页：员工列表（去重显示） ==================
+// ================== 2. 首页：员工列表 ==================
 function renderEmployees() {
   document.getElementById("back").style.display = "none";
 
   const keyword = document.getElementById("search").value || "";
 
-  // 去重员工（只用于展示，不影响数据）
-  const map = new Map();
-
-  rawData.forEach(r => {
-    if (!r.employee_code) return;
-
-    map.set(r.employee_code, {
-      employee_code: r.employee_code,
-      employee_name: r.employee_name
-    });
-  });
-
-  let list = Array.from(map.values());
-
-  list = list.filter(e =>
+  let list = employees.filter(e =>
     (e.employee_name || "").includes(keyword) ||
     (e.employee_code || "").includes(keyword)
   );
 
   document.getElementById("list").innerHTML = list.map(e => `
     <div class="item" onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
-      👤 ${e.employee_name || "未知"}
+      👤 ${e.employee_name}
       <div class="sub">${e.employee_code}</div>
     </div>
   `).join("");
 }
 
-// ================== 3. 进入员工 → 门店列表 ==================
+// ================== 3. 点员工 → 门店 ==================
 function openEmployee(code, name) {
+
   document.getElementById("back").style.display = "block";
 
-  const stores = rawData.filter(r => r.employee_code === code);
+  const links = relations.filter(r => r.employee_code === code);
+
+  const list = links.map(l => {
+    return stores.find(s => s.atom_code === l.atom_code);
+  }).filter(Boolean);
 
   document.getElementById("list").innerHTML = `
     <h3>👤 ${name}</h3>
 
-    ${stores.map(s => `
+    ${list.map(s => `
       <div class="item">
-        🏪 ${s.store_name || "未知门店"}
-        <div class="sub">
-          门店码：${s.atom_code || "-"}
-        </div>
-        <button class="btn" onclick="openOrder('${s.atom_code}')">
-          开单
-        </button>
+        🏪 ${s.store_name}
+        <div class="sub">${s.atom_code}</div>
+        <button class="btn" onclick="openOrder('${s.atom_code}')">开单</button>
       </div>
     `).join("")}
   `;
@@ -169,13 +154,13 @@ function back() {
   renderEmployees();
 }
 
-// ================== 5. 开单入口 ==================
+// ================== 5. 开单 ==================
 function openOrder(atom) {
   alert("进入开单：" + atom);
 }
 
-// 初始化
 loadData();
+
 </script>
 
 </body>
