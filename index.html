@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
   <meta charset="UTF-8" />
-  <title>门店系统 Debug版</title>
+  <title>系统Debug终极版</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
   <style>
@@ -11,19 +11,22 @@
     .item { padding:12px; border-bottom:1px solid #eee; cursor:pointer; }
     .item:hover { background:#f0f7ff; }
     input { width:100%; padding:10px; margin-bottom:10px; }
-    .btn { background:#1677ff; color:#fff; padding:6px 10px; border:none; border-radius:6px; }
     .back { color:#1677ff; cursor:pointer; display:none; margin-bottom:10px; }
+    .warn { color:red; font-size:13px; margin:5px 0; }
+    .ok { color:green; font-size:13px; margin:5px 0; }
     .sub { font-size:12px; color:#888; }
   </style>
 </head>
 
 <body>
 
-<h2>📦 门店系统 Debug版</h2>
+<h2>📦 Debug终极测试版</h2>
 
 <div class="card">
 
   <input id="search" placeholder="搜索员工..." oninput="renderEmployees()" />
+
+  <div id="status"></div>
 
   <div id="back" class="back" onclick="back()">← 返回</div>
 
@@ -55,13 +58,17 @@ async function loadData() {
   stores = s.data || [];
   relations = r.data || [];
 
-  console.log("===== DATA CHECK =====");
-  console.log("employees:", employees.length);
-  console.log("stores_dim:", stores.length);
-  console.log("employee_stores:", relations.length);
+  // ===== 超级关键 debug =====
+  console.log("=== API RAW RESULT ===");
+  console.log("employees:", e);
+  console.log("stores_dim:", s);
+  console.log("employee_stores:", r);
 
-  console.log("sample store:", stores[0]);
-  console.log("sample relation:", relations[0]);
+  document.getElementById("status").innerHTML = `
+    <div class="ok">employees: ${employees.length}</div>
+    <div class="ok">stores_dim: ${stores.length}</div>
+    <div class="warn">relations: ${relations.length}</div>
+  `;
 
   renderEmployees();
 }
@@ -86,40 +93,45 @@ function renderEmployees() {
   `).join("");
 }
 
-// ================== 3. 进入员工 ==================
+// ================== 3. 点员工 ==================
 function openEmployee(code, name) {
 
   document.getElementById("back").style.display = "block";
 
+  console.log("=== CLICK ===", code);
+
+  console.log("ALL relations RAW:", relations);
+
   const links = relations.filter(r => r.employee_code === code);
 
-  console.log("===== CLICK EMPLOYEE =====");
-  console.log("employee:", code);
-  console.log("relations:", links);
+  console.log("FILTERED links:", links);
 
   const list = links.map(l => {
 
-    const store = stores.find(s => s.atom_code === l.atom_code);
+    const store = stores.find(s =>
+      String(s.atom_code) === String(l.atom_code)
+    );
 
     if (!store) {
-      console.log("❌ 找不到门店:", l.atom_code);
+      console.log("❌ missing store:", l.atom_code);
     }
 
     return store;
   }).filter(Boolean);
 
-  console.log("matched stores:", list);
+  console.log("FINAL STORES:", list);
 
   document.getElementById("list").innerHTML = `
     <h3>${name}</h3>
 
-    ${list.length === 0 ? `<div>⚠️ 没有匹配到门店（看console）</div>` : ""}
+    ${links.length === 0 ? `<div class="warn">⚠️ relations为空（问题就在这里）</div>` : ""}
+
+    ${list.length === 0 && links.length > 0 ? `<div class="warn">⚠️ 有关系但找不到门店</div>` : ""}
 
     ${list.map(s => `
       <div class="item">
         ${s.store_name}
         <div class="sub">${s.atom_code}</div>
-        <button class="btn" onclick="openOrder('${s.atom_code}')">开单</button>
       </div>
     `).join("")}
   `;
@@ -128,11 +140,6 @@ function openEmployee(code, name) {
 // ================== 4. 返回 ==================
 function back() {
   renderEmployees();
-}
-
-// ================== 5. 开单 ==================
-function openOrder(atom) {
-  alert("开单：" + atom);
 }
 
 loadData();
