@@ -49,7 +49,6 @@ let currentStores = [];
 let orderData = null;
 
 // INIT
-init();
 async function init(){
   const e = await client.from('employees').select('*');
   const s = await client.from('stores_dim').select('*');
@@ -120,7 +119,7 @@ function renderStores(){
   );
 
   document.getElementById('list').innerHTML = `
-    <div class='sub'>${currentEmployee.name}</div>
+    <div class='sub' style='font-weight:bold;margin-bottom:10px;'>当前员工：${currentEmployee.name}</div>
     ${f.map(s=>`
       <div class='item' onclick="openOrder('${s.atom_code}','${s.store_name}')">
         ${s.store_name}
@@ -136,12 +135,6 @@ function openOrder(atom,name){
   document.getElementById('back').classList.remove('hide');
 
   const today = new Date().toISOString().split('T')[0];
-
-  const grouped = {};
-  products.forEach(p=>{
-    if(!grouped[p.brand]) grouped[p.brand]=[];
-    grouped[p.brand].push(p);
-  });
 
   orderData = {
     atom,
@@ -162,9 +155,11 @@ function renderOrder(){
     grouped[p.brand].push(p);
   });
 
+  // 修复了这里原本断开的字符串模板拼接
   document.getElementById('list').innerHTML = `
-    <div class='row'>
-      📅 <span id='dateText'>${orderData.date}</span>
+    <div class='sub' style='font-weight:bold;margin-bottom:10px;'>当前门店：${orderData.name}</div>
+    <div class='row' style='margin-bottom:15px;'>
+      <span>📅 日期: <span id='dateText'>${orderData.date}</span></span>
       <button class='smallbtn' onclick='editDate()'>修改</button>
     </div>
 
@@ -172,26 +167,28 @@ function renderOrder(){
       <div class='brand'>${b}</div>
       ${grouped[b].map(p=>`
         <div class='item'>
-          ${p.spec}${p.product_name}
+          <div>${p.spec || ''}${p.product_name}</div>
           <div class='sub'>默认 ${p.default_price}元</div>
 
-          数量
-          <button onclick="changeQty('${p.id}',-1)">-</button>
-          <span id='q_${p.id}'>${orderData.items[p.id]?.qty||0}</span>
-          <button onclick="changeQty('${p.id}',1)">+</button>
+          <div style='margin-top:5px;'>
+            数量：
+            <button onclick="changeQty('${p.id}',-1)">-</button>
+            <span id='q_${p.id}' style='margin:0 8px;font-weight:bold;'>${orderData.items[p.id]?.qty||0}</span>
+            <button onclick="changeQty('${p.id}',1)">+</button>
+          </div>
 
-          <br/>
-
-          价格
-          <button onclick="changePrice('${p.id}',-0.1)">-</button>
-          <span id='p_${p.id}'>${orderData.items[p.id]?.price ?? p.default_price}</span>
-          <button onclick="changePrice('${p.id}',0.1)">+</button>
+          <div style='margin-top:5px;'>
+            价格：
+            <button onclick="changePrice('${p.id}',-0.1)">-</button>
+            <span id='p_${p.id}' style='margin:0 8px;'>${orderData.items[p.id]?.price ?? p.default_price}</span>
+            <button onclick="changePrice('${p.id}',0.1)">+</button>
+          </div>
         </div>
       `).join('')}
-    `).join('')
+    `).join('')}
 
-    <div style='margin-top:10px'>
-      <button onclick='submitOrder()'>提交订单</button>
+    <div style='margin-top:20px; text-align:center;'>
+      <button onclick='submitOrder()' style='width:100%; padding:10px;'>提交订单</button>
     </div>
   `;
 }
@@ -223,6 +220,12 @@ function editDate(){
 }
 
 async function submitOrder(){
+  // 先判断有没有选商品数量
+  const hasItems = Object.keys(orderData.items).some(id => orderData.items[id].qty > 0);
+  if(!hasItems){
+    alert("请至少选择一件商品数量大于0");
+    return;
+  }
 
   const { data: o, error } = await client.from('orders').insert({
     employee_code: currentEmployee.code,
@@ -231,12 +234,11 @@ async function submitOrder(){
   }).select().single();
 
   if(error){
-    alert(error.message);
+    alert("主订单提交失败：" + error.message);
     return;
   }
 
   const items = [];
-
   Object.keys(orderData.items).forEach(id=>{
     const it = orderData.items[id];
     if(it.qty > 0){
@@ -250,18 +252,26 @@ async function submitOrder(){
   });
 
   if(items.length > 0){
-    await client.from('order_items').insert(items);
+    const { error: itemErr } = await client.from('order_items').insert(items);
+    if(itemErr){
+      alert("商品明细提交失败：" + itemErr.message);
+      return;
+    }
   }
 
-  alert('提交成功');
-  renderEmployees();
+  alert('订单提交成功！');
+  // 提交成功后回到当前员工的门店列表
+  openEmployee(currentEmployee.code, currentEmployee.name);
 }
 
-// BACK
+// BACK (修复了原本的大小写问题 goback -> goBack)
 function goBack(){
   if(STATE === 'ORDER') openEmployee(currentEmployee.code,currentEmployee.name);
   else if(STATE === 'STORE') renderEmployees();
 }
+
+// 执行初始化
+init();
 
 </script>
 
