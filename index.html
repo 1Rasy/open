@@ -11,9 +11,8 @@
       margin: 20px;
       background: #f5f5f5;
     }
-    h1 {
-      margin-bottom: 10px;
-    }
+    h1 { margin-bottom: 10px; }
+
     .card {
       background: white;
       padding: 15px;
@@ -21,38 +20,53 @@
       margin-bottom: 15px;
       box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     }
-    table {
-      width: 100%;
-      border-collapse: collapse;
+
+    .row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
     }
-    th, td {
-      padding: 10px;
-      border-bottom: 1px solid #eee;
-      text-align: left;
+
+    input {
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      flex: 1;
     }
+
     button {
       padding: 6px 10px;
       border: none;
       border-radius: 6px;
       cursor: pointer;
     }
+
     .btn {
       background: #1677ff;
       color: white;
     }
+
     .btn:hover {
       background: #0f5bd6;
     }
-    .row {
+
+    .item {
+      padding: 12px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
       display: flex;
-      gap: 10px;
-      margin-bottom: 10px;
+      justify-content: space-between;
     }
-    input {
-      padding: 8px;
-      border: 1px solid #ddd;
-      border-radius: 6px;
-      flex: 1;
+
+    .item:hover {
+      background: #f0f7ff;
+    }
+
+    .back {
+      margin-bottom: 10px;
+      display: inline-block;
+      cursor: pointer;
+      color: #1677ff;
     }
   </style>
 </head>
@@ -62,90 +76,119 @@
 <h1>📦 门店库存 & 开单系统</h1>
 
 <div class="card">
-  <h3>门店 / 员工列表</h3>
 
+  <!-- 搜索 -->
   <div class="row">
-    <input id="search" placeholder="搜索门店或员工..." />
+    <input id="search" placeholder="搜索员工..." oninput="renderEmployees()" />
     <button class="btn" onclick="loadData()">刷新</button>
   </div>
 
-  <table>
-    <thead>
-      <tr>
-        <th>ATOM编码</th>
-        <th>门店名称</th>
-        <th>员工工号</th>
-        <th>员工姓名</th>
-        <th>操作</th>
-      </tr>
-    </thead>
-    <tbody id="tableBody"></tbody>
-  </table>
-</div>
+  <!-- 返回按钮 -->
+  <div id="backBtn" style="display:none" class="back" onclick="backToEmployees()">
+    ← 返回员工列表
+  </div>
 
-<div class="card">
-  <h3>功能入口（后续扩展）</h3>
-  <button class="btn">➕ 新建开单</button>
-  <button class="btn">📊 库存管理</button>
+  <!-- 列表 -->
+  <div id="list"></div>
+
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
-  // ====== 1. Supabase 初始化 ======
   const SUPABASE_URL = "https://mnmzqmqxdzagpounvchn.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_-AQkn3K06H0cykzBsM_pGg_J1lYgIPF";
+  const SUPABASE_ANON_KEY = "你的anon_key";
 
   const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // ====== 2. 加载数据 ======
+  let rawData = [];
+  let currentEmployee = null;
+
+  // ===== 1. 拉数据 =====
   async function loadData() {
-    const search = document.getElementById("search").value;
-
-    let query = client
-      .from("stores")  // ← 改成你的表名
+    const { data, error } = await client
+      .from("stores")
       .select("*");
-
-    const { data, error } = await query;
 
     if (error) {
       alert("加载失败：" + error.message);
       return;
     }
 
-    renderTable(data);
+    rawData = data;
+    renderEmployees();
   }
 
-  // ====== 3. 渲染表格 ======
-  function renderTable(data) {
-    const tbody = document.getElementById("tableBody");
-    tbody.innerHTML = "";
+  // ===== 2. 首页：员工列表 =====
+  function renderEmployees() {
+    currentEmployee = null;
+    document.getElementById("backBtn").style.display = "none";
 
-    data.forEach(row => {
-      const tr = document.createElement("tr");
+    const keyword = document.getElementById("search").value || "";
 
-      tr.innerHTML = `
-        <td>${row.atom_code || ""}</td>
-        <td>${row.store_name || ""}</td>
-        <td>${row.employee_code || ""}</td>
-        <td>${row.employee_name || ""}</td>
-        <td>
-          <button class="btn" onclick="openOrder('${row.atom_code}')">开单</button>
-        </td>
-      `;
+    // 去重员工
+    const map = new Map();
 
-      tbody.appendChild(tr);
+    rawData.forEach(row => {
+      if (!map.has(row.employee_code)) {
+        map.set(row.employee_code, {
+          employee_code: row.employee_code,
+          employee_name: row.employee_name
+        });
+      }
     });
+
+    let list = Array.from(map.values());
+
+    // 搜索过滤
+    list = list.filter(e =>
+      e.employee_name.includes(keyword) ||
+      e.employee_code.includes(keyword)
+    );
+
+    const html = list.map(e => `
+      <div class="item" onclick="openEmployee('${e.employee_code}', '${e.employee_name}')">
+        <span>${e.employee_name}</span>
+        <span style="color:#999">${e.employee_code}</span>
+      </div>
+    `).join("");
+
+    document.getElementById("list").innerHTML = html;
   }
 
-  // ====== 4. 开单入口（后面你要做核心） ======
+  // ===== 3. 进入员工 → 门店列表 =====
+  function openEmployee(code, name) {
+    currentEmployee = code;
+    document.getElementById("backBtn").style.display = "block";
+
+    const stores = rawData.filter(r => r.employee_code === code);
+
+    const html = `
+      <h3>👤 ${name}</h3>
+      ${stores.map(s => `
+        <div class="item">
+          <span>
+            ${s.store_name}
+            <div style="font-size:12px;color:#999">${s.atom_code}</div>
+          </span>
+          <button class="btn" onclick="openOrder('${s.atom_code}')">开单</button>
+        </div>
+      `).join("")}
+    `;
+
+    document.getElementById("list").innerHTML = html;
+  }
+
+  // ===== 4. 返回 =====
+  function backToEmployees() {
+    renderEmployees();
+  }
+
+  // ===== 5. 开单 =====
   function openOrder(atom_code) {
-    alert("进入开单页面，门店：" + atom_code);
-    // 后面可以跳转：
-    // window.location.href = "order.html?atom=" + atom_code;
+    alert("进入开单：" + atom_code);
   }
 
-  // 初始加载
   loadData();
 </script>
 
