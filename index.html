@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8" />
-<title>亿滋门店开单系统 V2</title>
+<title>MDLZ 亿滋门店开单系统 V2</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 
 <style>
@@ -19,7 +19,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .header { padding:16px 20px; font-size:20px; font-weight: 700; background: var(--card-bg); position:sticky; top:0; z-index:10; border-bottom:1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05); text-align: center;}
 .card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
 
-/* 🔴 优化后的大尺寸返回按钮 */
+/* 舒适的大尺寸返回按钮 */
 .back-btn {
   display: inline-flex;
   align-items: center;
@@ -39,7 +39,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .back-btn:active { background: #e5e7eb; transform: scale(0.97); }
 .back-btn::before { content: "←"; margin-right: 6px; font-weight: bold; font-size: 16px; }
 
-/* 列表条目高级化 */
+/* 靠左高密度弹性盒 */
 .item { padding:14px 4px; border-bottom:1px solid #f3f4f6; display: flex; align-items: center; justify-content: flex-start; gap: 15px; }
 .item:last-child { border-bottom: none; }
 .item:active { background:#f8fafc; }
@@ -73,14 +73,14 @@ button:active { background: var(--primary-hover); }
 .sub { font-size:13px; color: var(--text-muted); margin-top: 2px; }
 .hide { display:none; }
 
-/* 信息密度控制 */
+/* 信息密度控制与靠左紧凑对齐 */
 .prod-info { width: 42%; min-width: 120px; flex-shrink: 0; }
 .prod-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1f2937;}
 .control-group { display: flex; align-items: center; gap: 14px; }
 .ctrl-item { display: flex; align-items: center; font-size: 14px; }
 .ctrl-val { display: inline-block; min-width: 26px; text-align: center; font-weight: 700; color: var(--text-main); font-size: 15px; }
 
-/* 右下角悬浮提交按钮 */
+/* 右下角固定悬浮提交按钮 */
 .float-submit {
   position: fixed;
   right: 20px;
@@ -121,25 +121,23 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let STATE = "EMP"; 
 let employees = [];
-let stores = [];
+let stores = []; // 存放当前员工过滤出来的门店，动态按需加载
 let products = [];
 
 let currentEmployee = null;
-let currentStores = [];
 let currentStore = null; 
 let orderData = null;
 let currentSelectedBrand = null; 
 let historyOrders = []; 
 
-// INIT
+// 1. 初始化 (不再全量盲查门店表，绕开 1000 条截断魔咒)
 async function init(){
   const e = await client.from('employees').select('*');
-  const s = await client.from('stores_dim').select('*');
   const p = await client.from('products').select('*');
 
   employees = e.data || [];
-  stores = s.data || [];
   products = p.data || [];
+  stores = []; // 初始化清空
 
   renderEmployees();
 }
@@ -153,7 +151,7 @@ function getSearch(){
   return document.getElementById('search').value || '';
 }
 
-// 1. 员工列表
+// 2. 展现员工列表
 function renderEmployees(){
   STATE = 'EMP';
   document.getElementById('back').classList.add('hide');
@@ -172,27 +170,45 @@ function renderEmployees(){
   `).join('');
 }
 
-// 2. 进入员工
-async function openEmployee(code,name){
+// 3. 点击员工：精准、动态抓取该员工负责的所有门店
+async function openEmployee(code, name){
   STATE = 'STORE';
-  currentEmployee = {code,name};
+  currentEmployee = {code, name};
 
   document.getElementById('back').classList.remove('hide');
   document.getElementById('search').classList.remove('hide');
-  document.getElementById('list').innerHTML = '<div style="color:#6b7280;padding:10px;">📊 正在载入负责门店...</div>';
+  document.getElementById('list').innerHTML = '<div style="color:#6b7280;padding:10px;">📊 正在精准载入负责门店...</div>';
 
+  // 第一步：先拿该工号下绑定关系链的所有 atom_code 
   const r = await client.from('employee_stores').select('atom_code').eq('employee_code', code);
-  const codes = (r.data||[]).map(i=>i.atom_code);
-  currentStores = stores.filter(s=>codes.includes(s.atom_code));
+  const codes = (r.data || []).map(i => String(i.atom_code).trim());
 
+  if (codes.length === 0) {
+    document.getElementById('list').innerHTML = `<div class="sub" style="text-align:center;padding:20px;color:#ef4444;">⚠️ 该员工未在系统中绑定任何负责门店</div>`;
+    return;
+  }
+
+  // 第二步：拿着这些 atom_code 进门店主表进行精确的 .in() 查询
+  // 这样无论门店库有几万家，只查出来的这几十家绝不触发 1000 条硬限制限制！
+  const { data: matchedStores, error } = await client
+    .from('stores_dim')
+    .select('*')
+    .in('atom_code', codes);
+
+  if (error) {
+    alert("门店档案加载失败：" + error.message);
+    return;
+  }
+
+  stores = matchedStores || [];
   renderStores();
 }
 
-// 3. 门店列表
+// 4. 渲染当前员工拥有的门店列表
 function renderStores(){
   STATE = 'STORE';
   const k = getSearch();
-  const f = currentStores.filter(s=> (s.store_name||'').includes(k) );
+  const f = stores.filter(s=> (s.store_name||'').includes(k) || (s.atom_code||'').includes(k) );
 
   document.getElementById('list').innerHTML = `
     <div class='sub' style='font-weight:600;margin-bottom:12px;color:var(--text-main);'>👤 当前员工：${currentEmployee.name}</div>
@@ -207,7 +223,7 @@ function renderStores(){
   `;
 }
 
-// 4. 门店历史记录
+// 5. 点击门店：进入历史开单总揽记录
 async function openStoreHistory(atom, name) {
   STATE = 'HISTORY';
   currentStore = { atom, name };
@@ -249,7 +265,7 @@ function renderHistory(){
   `;
 }
 
-// 5. 查看历史明细
+// 6. 查看历史具体单据的明细
 async function viewOrderDetail(orderId, orderDate) {
   STATE = 'DETAIL';
   document.getElementById('list').innerHTML = '<div style="color:#6b7280;padding:10px;">🔍 正在努力加载商品清单...</div>';
@@ -286,9 +302,11 @@ async function viewOrderDetail(orderId, orderDate) {
   `;
 }
 
-// 6. 开始开单页
+// 7. 进入真正的开单录入页面
 function openOrder(atom,name){
   STATE = 'ORDER';
+  
+  // 采用本地时区防止半夜开单变成前一天
   const d = new Date();
   const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
@@ -322,12 +340,14 @@ function renderOrder(){
       <button class='smallbtn' onclick='editDate()'>修改日期</button>
     </div>
 
+    <!-- 顶置品牌切换条 -->
     <div class='brand-nav'>
       ${brands.map(b => `<div class="brand-badge ${b === currentSelectedBrand ? 'active' : ''}" onclick="selectBrand('${b}')">${b}</div>`).join('')}
     </div>
 
-    <div class='brand'>✨ ${currentSelectedBrand}</div>
+    <div class='brand'>✨ 当前展现品牌：${currentSelectedBrand}</div>
     
+    <!-- 精简紧凑型布局：商品名字 + 控制件同行紧密靠左排列 -->
     ${displayProducts.map(p=>`
       <div class='item'>
         <div class='prod-info'>
@@ -349,6 +369,7 @@ function renderOrder(){
       </div>
     `).join('')}
 
+    <!-- 右下角悬浮固定提交 -->
     <button class='float-submit' onclick='submitOrder()'>🚀 提交账单</button>
   `;
 }
@@ -405,7 +426,7 @@ async function submitOrder(){
   openStoreHistory(currentStore.atom, currentStore.name);
 }
 
-// 返回
+// 多层级清晰回退导航
 function goBack(){
   if(STATE === 'DETAIL') renderHistory();
   else if(STATE === 'ORDER') renderHistory();
@@ -413,6 +434,7 @@ function goBack(){
   else if(STATE === 'STORE') renderEmployees();
 }
 
+// 唤醒初始化
 init();
 
 </script>
