@@ -103,7 +103,7 @@
     const search = document.getElementById("search").value;
 
     let query = client
-      .from("your_table_name")  // ← 改成你的表名
+      .from("stores")  // ← 改成你的表名
       .select("*");
 
     const { data, error } = await query;
