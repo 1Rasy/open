@@ -56,7 +56,17 @@
     currentEmployee: { code: new URLSearchParams(window.location.search).get('emp_code'), name: new URLSearchParams(window.location.search).get('emp_name') }, 
     stockData: {}
   };
+// 全量捕获所有的切换动作，不管原本 utils 里的 onclick 叫什么名字，只要触发一律强制刷新本页库存渲染
+window.switchBrand = window.filterBrand = window.changeBrand = function(b) {
+  window.APP_STATE.currentSelectedBrand = b;
+  window.APP_STATE.currentSelectedSpec = "ALL";
+  if (typeof window.renderStockPage === 'function') window.renderStockPage();
+};
 
+window.switchSpec = window.filterSpec = window.changeSpec = function(s) {
+  window.APP_STATE.currentSelectedSpec = s;
+  if (typeof window.renderStockPage === 'function') window.renderStockPage();
+};
   // 修复核心：重写通用切换逻辑，让它在本页独立触发 renderStockPage
   window.switchBrand = function(b) {
     window.APP_STATE.currentSelectedBrand = b;
