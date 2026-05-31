@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8" />
-<title>开单+库存(iOS滚轮修正版)</title>
+<title>开单+库存(iOS标准规范版)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>
 :root {
@@ -33,14 +33,16 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .prod-info { flex: 1; min-width: 0; }
 .prod-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.control-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
-.picker-wrapper { display: flex; align-items: center; gap: 2px; font-size: 13px; color: var(--text-muted); }
+.control-group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.picker-wrapper { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-muted); }
+.picker-wrapper span.label-txt { font-weight: 500; color: #665c67; }
+.picker-wrapper span.unit-txt { font-weight: 600; color: var(--text-main); font-size: 13px; }
 .ios-picker {
   background: #f4f2f5;
   color: var(--text-main);
   border: 1px solid #dcd6dd;
   border-radius: 6px;
-  padding: 6px 8px;
+  padding: 6px 10px;
   font-size: 14px;
   font-weight: 700;
   outline: none;
@@ -48,13 +50,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
   -webkit-appearance: none; 
   appearance: none;
   text-align: center;
-  min-width: 50px;
+  min-width: 44px;
 }
 .ios-picker:focus { border-color: var(--primary); background: #fff; }
 
-.aftersale-panel { background: #fdfaf6; border: 1px dashed #f5dab1; border-radius: 6px; padding: 10px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
-.aftersale-row { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
-.aftersale-options { display: flex; gap: 12px; margin-top: 4px;}
+/* 售后与赠送面板 */
+.aftersale-panel { background: #fdfaf6; border: 1px dashed #f5dab1; border-radius: 8px; padding: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
+.aftersale-options { display: flex; gap: 14px; margin-top: 2px; border-top: 1px solid #faebd7; padding-top: 8px;}
 .aftersale-options label { display: flex; align-items: center; gap: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }
 .btn-stock-gate { background: linear-gradient(135deg, var(--primary), #6b266c); color: #fff; padding: 14px; width: 100%; border-radius: 10px; font-size: 15px; font-weight: 700; margin-bottom: 16px; text-align: center; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(74,21,75,0.15);}
 .btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center;}
@@ -66,7 +68,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .search-wrapper input:focus { outline: none; border-color: var(--primary); background: #fff;}
 .search-clear-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #e2dde3; color: #756676; border-radius: 50%; text-align: center; line-height: 20px; font-size: 12px; cursor: pointer; font-weight: bold; display: none; z-index: 5; }
 .search-clear-btn:active { background: #d0c9d2; }
-.btn-aftersale-trigger { background: #fff; color: #e6a23c; border: 1px solid #f5dab1; font-weight: bold; font-size: 11px; padding: 4px 6px; border-radius: 4px; }
+.btn-aftersale-trigger { background: #fff; color: #e6a23c; border: 1px solid #f5dab1; font-weight: bold; font-size: 11px; padding: 4px 6px; border-radius: 4px; margin-top: 4px; }
 .btn-aftersale-trigger.active { background: #fdf6ec; border-color: #e6a23c; }
 .brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px 0; }
 .brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 7px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: 600; border: 1px solid transparent; }
@@ -124,34 +126,23 @@ let currentSelectedSpec = "ALL";
 let historyOrders = []; 
 let stockData = {}; 
 
-// 🎯 规则配置
-const BOX_SALE_OREO_IDS = [19, 20];          // 20和21号：开单销售单位为中盒，售后/赠送/库存为包
-const DOUBLE_DECIMAL_PRICE_IDS = [49,50,51,52,53,54,55];   // 两位小数特有商品ID规则（在这里加你需要两位小数的ID，跟20,21解耦）
+const BOX_SALE_OREO_IDS = [19, 20];          
+const DOUBLE_DECIMAL_PRICE_IDS = [49,50,51,52,53,54,55];   
 
-// 辅助函数：根据商品ID判定价格在滚轮中渲染几位小数
 function getPriceDecimalPlaces(prodId) {
   return DOUBLE_DECIMAL_PRICE_IDS.includes(Number(prodId)) ? 2 : 1;
 }
 
-// 辅助函数：开单金额高精度折算逻辑
 function getLiveRowAmounts(prodId, qty, price, giftQty, returnQty) {
-  let saleAmount = 0;
-  let giftAmount = 0;
-  let returnAmount = 0;
-
+  let saleAmount = 0; let giftAmount = 0; let returnAmount = 0;
   if (BOX_SALE_OREO_IDS.includes(Number(prodId))) {
-    // 20、21号特殊处理：销售按整盒(默认17.5)，赠送和售后按拆包(17.5 / 11)
     const singleBagPrice = 17.5 / 11;
     saleAmount = qty * price; 
     giftAmount = giftQty * singleBagPrice;
     returnAmount = returnQty * singleBagPrice;
   } else {
-    // 普通商品：销售、赠送、售后全部统一按最小单位计价
-    saleAmount = qty * price;
-    giftAmount = giftQty * price;
-    returnAmount = returnQty * price;
+    saleAmount = qty * price; giftAmount = giftQty * price; returnAmount = returnQty * price;
   }
-
   return { saleAmount, giftAmount, returnAmount };
 }
 
@@ -176,7 +167,6 @@ function handleSearch(){
   const clearBtn = document.getElementById('clearSearch');
   if(val && val.length > 0) clearBtn.style.display = 'block';
   else clearBtn.style.display = 'none';
-
   if(STATE === 'EMP') renderEmployees();
   else if(STATE === 'STORE') renderStores();
 }
@@ -222,7 +212,6 @@ async function openEmployee(code, name){
   autoResetSearchState();
   STATE = 'STORE';
   currentEmployee = {code, name};
-  // 🛠️ 已经彻底修正该处的 .classList 语法错误，点击可正常载入并跳转门店
   document.getElementById('back').classList.remove('hide');
   document.getElementById('editStateBadge').classList.add('hide');
   document.getElementById('searchBlock').classList.remove('hide'); 
@@ -367,24 +356,23 @@ function generateFilterHeaderHtml() {
 function selectBrand(brandName) { currentSelectedBrand = brandName; currentSelectedSpec = "ALL"; if(STATE === 'ORDER') renderOrder(); else if(STATE === 'STOCK') renderStockPage(); }
 function selectSpec(specName) { currentSelectedSpec = specName; if(STATE === 'ORDER') renderOrder(); else if(STATE === 'STOCK') renderStockPage(); }
 
-function makeQtyOptionsHtml(max, current, suffix = '') {
+// 🎯 规范化：滚轮里面纯粹存放纯数字，利于iOS底部滚轮识别，没有任何单位字符干扰
+function makePureQtyOptionsHtml(max, current) {
   let html = '';
   for(let i=0; i<=max; i++) {
-    html += `<option value="${i}" ${i === current ? 'selected' : ''}>${i}${suffix}</option>`;
+    html += `<option value="${i}" ${i === current ? 'selected' : ''}>${i}</option>`;
   }
   return html;
 }
 
-// 🎯 两位小数按“五分钱（0.05）”为刻度跳跃，一位小数按“一毛钱（0.1）”跳跃
-function makePriceOptionsHtml(centerPrice, stepPlaces, currentSelected) {
+function makePurePriceOptionsHtml(centerPrice, stepPlaces, currentSelected) {
   let html = '';
   let start = Math.max(0.1, centerPrice - 15);
   let end = centerPrice + 30;
   let step = stepPlaces === 2 ? 0.05 : 0.1; 
-  
   for (let p = start; p <= end; p += step) {
     let val = +p.toFixed(stepPlaces);
-    html += `<option value="${val}" ${Math.abs(val - currentSelected) < 0.005 ? 'selected' : ''}>${val.toFixed(stepPlaces)}元</option>`;
+    html += `<option value="${val}" ${Math.abs(val - currentSelected) < 0.005 ? 'selected' : ''}>${val.toFixed(stepPlaces)}</option>`;
   }
   return html;
 }
@@ -399,8 +387,7 @@ function renderStockPage(){
     ${generateFilterHeaderHtml()}
     ${displayProducts.map(p => {
       const isOreoSpecial = BOX_SALE_OREO_IDS.includes(Number(p.id));
-      const specCase = p.pcs_per_case || 24; 
-      const specBox = p.pcs_per_box || 0;    
+      const specCase = p.pcs_per_case || 24; const specBox = p.pcs_per_box || 0;    
       const totalPcs = stockData.currentStockMap[p.id] || 0; 
 
       let displayCases = Math.floor(totalPcs / specCase);
@@ -429,18 +416,18 @@ function renderStockPage(){
             
             ${isOreoSpecial ? `
               <div class="picker-wrapper">
-                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'pcs', this.value)">${makeQtyOptionsHtml(200, curP)}</select><span>包</span>
+                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'pcs', this.value)">${makePureQtyOptionsHtml(200, curP)}</select><span class="unit-txt">包</span>
               </div>
             ` : `
               <div class="picker-wrapper">
-                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'cases', this.value)">${makeQtyOptionsHtml(50, curC)}</select><span>件</span>
+                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'cases', this.value)">${makePureQtyOptionsHtml(50, curC)}</select><span class="unit-txt">件</span>
               </div>
               ${specBox > 0 ? `
               <div class="picker-wrapper">
-                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'boxes', this.value)">${makeQtyOptionsHtml(50, curB)}</select><span>盒</span>
+                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'boxes', this.value)">${makePureQtyOptionsHtml(50, curB)}</select><span class="unit-txt">盒</span>
               </div>` : ''}
               <div class="picker-wrapper">
-                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'pcs', this.value)">${makeQtyOptionsHtml(100, curP)}</select><span>个</span>
+                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'pcs', this.value)">${makePureQtyOptionsHtml(100, curP)}</select><span class="unit-txt">个</span>
               </div>
             `}
           </div>
@@ -506,11 +493,8 @@ async function openStoreHistory(atom, name) {
       const oItems = allItems.filter(it => it.order_id === o.id);
       oItems.forEach(it => {
         const parsedReturn = parseReturnHandleText(it.return_handle);
-        // 使用核心的高精度算账逻辑
         const rowRes = getLiveRowAmounts(it.product_id, it.qty || 0, it.price || 0, it.gift_qty || 0, parsedReturn.qty || 0);
-        sSum += rowRes.saleAmount;
-        gSum += rowRes.giftAmount;
-        rSum += rowRes.returnAmount;
+        sSum += rowRes.saleAmount; gSum += rowRes.giftAmount; rSum += rowRes.returnAmount;
       });
       o.saleSum = sSum; o.returnSum = rSum; o.giftSum = gSum;
     });
@@ -548,9 +532,7 @@ async function viewOrderDetail(orderId, orderDate) {
   items.forEach(it => {
     const parsedReturn = parseReturnHandleText(it.return_handle);
     const rowRes = getLiveRowAmounts(it.product_id, it.qty || 0, it.price || 0, it.gift_qty || 0, parsedReturn.qty || 0);
-    detailSaleSum += rowRes.saleAmount;
-    detailReturnSum += rowRes.returnAmount;
-    detailGiftSum += rowRes.giftAmount;
+    detailSaleSum += rowRes.saleAmount; detailReturnSum += rowRes.returnAmount; detailGiftSum += rowRes.giftAmount;
   });
 
   document.getElementById('list').innerHTML = `
@@ -567,7 +549,7 @@ async function viewOrderDetail(orderId, orderDate) {
           <div class="item-main-row">
             <div class='prod-info'>
               <div class='prod-name'>${p.spec} ${p.product_name}</div>
-              ${parsedReturn.qty > 0 ? `<div style="font-size:12px; color:#e6a23c;">🔄 回收: ${parsedReturn.qty}包 (${parsedReturn.handle==='RESTORE'?'良品':'报损'})</div>` : ''}
+              ${parsedReturn.qty > 0 ? `<div style="font-size:12px; color:#e6a23c;">🔄 售后: ${parsedReturn.qty}包 (${parsedReturn.handle==='RESTORE'?'良品':'报损'})</div>` : ''}
               ${(it.gift_qty||0) > 0 ? `<div style="font-size:12px; color:#1890ff;">🎁 赠送: ${it.gift_qty}包</div>` : ''}
             </div>
             <div style="text-align:right; font-size:14px;">销售: <strong>${it.qty}</strong> ${isOreoSpecial?'中盒':'个'}<br><span class="sub">${Number(it.price).toFixed(decPlaces)}元</span></div>
@@ -590,10 +572,9 @@ function editExistingOrder(orderId, orderDate, rawItemsEncoded) {
       showPanel: parsedReturn.qty > 0 || (it.gift_qty || 0) > 0
     };
     
-    // 计算库存冲抵影响（20,21要把销售的中盒换算成11包）
     const isOreoSpecial = BOX_SALE_OREO_IDS.includes(Number(it.product_id));
     const saleBags = isOreoSpecial ? (it.qty * 11) : it.qty;
-    const giftBags = isOreoSpecial ? (it.gift_qty || 0) : (it.gift_qty || 0);
+    const giftBags = it.gift_qty || 0;
     const returnBags = parsedReturn.qty || 0;
 
     let oldNet = saleBags + giftBags - (parsedReturn.handle === 'RESTORE' ? returnBags : 0);
@@ -616,9 +597,7 @@ function calculateLiveOrderAmounts() {
     const item = orderData.items[p.id];
     if(item) {
       const rowRes = getLiveRowAmounts(p.id, item.qty || 0, item.price || 0, item.gift_qty || 0, item.return_qty || 0);
-      s += rowRes.saleAmount; 
-      r += rowRes.returnAmount; 
-      g += rowRes.giftAmount;     
+      s += rowRes.saleAmount; r += rowRes.returnAmount; g += rowRes.giftAmount;     
     }
   });
   document.getElementById('liveAmountBanner').innerHTML = `卖进：<strong>${s.toFixed(1)}</strong> 元 | 售后：<strong>${r.toFixed(1)}</strong> 元 | 赠送：<strong>${g.toFixed(1)}</strong> 元`;
@@ -637,7 +616,6 @@ function renderOrder(){
     ${generateFilterHeaderHtml()}
     ${displayProducts.map(p => {
       const isOreoSpecial = BOX_SALE_OREO_IDS.includes(Number(p.id));
-      // 如果是20,21特殊奥利奥且没有初始化过，默认价格直接给 17.5
       const defaultPriceVal = isOreoSpecial ? 17.5 : (p.default_price || 15);
       
       const itData = orderData.items[p.id] || { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
@@ -653,16 +631,18 @@ function renderOrder(){
             
             <div class='control-group'>
               <div class="picker-wrapper">
-                <span>销售:</span>
+                <span class="label-txt">销售:</span>
                 <select class="ios-picker" onchange="pickerChangeQty('${p.id}', this.value)">
-                  ${makeQtyOptionsHtml(100, itData.qty, isOreoSpecial ? '中盒' : '个')}
+                  ${makePureQtyOptionsHtml(100, itData.qty)}
                 </select>
+                <span class="unit-txt">${isOreoSpecial ? '中盒' : '个'}</span>
               </div>
               <div class="picker-wrapper">
-                <span>单价:</span>
+                <span class="label-txt">单价:</span>
                 <select class="ios-picker" onchange="pickerChangePrice('${p.id}', this.value)">
-                  ${makePriceOptionsHtml(defaultPriceVal, stepPlaces, itData.price)}
+                  ${makePurePriceOptionsHtml(defaultPriceVal, stepPlaces, itData.price)}
                 </select>
+                <span class="unit-txt">元</span>
               </div>
             </div>
           </div>
@@ -670,16 +650,19 @@ function renderOrder(){
           <div id="panel_${p.id}" class="aftersale-panel ${itData.showPanel ? '' : 'hide'}">
             <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
               <div class="picker-wrapper">
-                <span>赠送:</span>
-                <select class="ios-picker" onchange="pickerChangeGiftQty('${p.id}', this.value)">
-                  ${makeQtyOptionsHtml(50, itData.gift_qty, '包')}
-                </select>
-              </div>
-              <div class="picker-wrapper">
-                <span>回收:</span>
+                <span class="label-txt">售后:</span>
                 <select class="ios-picker" onchange="pickerChangeReturnQty('${p.id}', this.value)">
-                  ${makeQtyOptionsHtml(100, itData.return_qty, '包')}
+                  ${makePureQtyOptionsHtml(100, itData.return_qty)}
                 </select>
+                <span class="unit-txt">包</span>
+              </div>
+
+              <div class="picker-wrapper">
+                <span class="label-txt">赠送:</span>
+                <select class="ios-picker" onchange="pickerChangeGiftQty('${p.id}', this.value)">
+                  ${makePureQtyOptionsHtml(50, itData.gift_qty)}
+                </select>
+                <span class="unit-txt">包</span>
               </div>
             </div>
             <div class="aftersale-options">
@@ -713,6 +696,18 @@ function setReturnHandle(id, h) { initItemState(id); orderData.items[id].return_
 function syncSelectedDate(val){ if(!val) return; orderData.date = val; document.getElementById('dateText').innerText = val; }
 
 async function submitOrder(){
+  // 🎯 拦截拦截校验：统计整个订单当前有效总业务数量
+  let grandTotalQty = 0;
+  Object.keys(orderData.items).forEach(id => {
+    const it = orderData.items[id];
+    grandTotalQty += (it.qty || 0) + (it.gift_qty || 0) + (it.return_qty || 0);
+  });
+
+  if (grandTotalQty === 0) {
+    alert("⚠️ 订单中没有填写任何有效的销售、赠送或售后数量，无法提交空白单据！");
+    return;
+  }
+
   const submitBtn = document.querySelector('.float-submit');
   if(submitBtn) { submitBtn.disabled = true; submitBtn.innerText = '⏳ 提交中...'; }
 
@@ -726,10 +721,9 @@ async function submitOrder(){
     const item = orderData.items[id] || { qty: 0, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE' };
     const oldNetImpact = orderData.oldItemsMap?.[id] || 0; 
     
-    // 扣减库存换算单位
     const isOreoSpecial = BOX_SALE_OREO_IDS.includes(Number(id));
     const saleBags = isOreoSpecial ? (item.qty * 11) : item.qty;
-    const giftBags = isOreoSpecial ? (item.gift_qty || 0) : (item.gift_qty || 0);
+    const giftBags = item.gift_qty || 0;
     const returnBags = item.return_qty || 0;
 
     let currentNetImpact = saleBags + giftBags - (item.return_handle === 'RESTORE' ? returnBags : 0);
