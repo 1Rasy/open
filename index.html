@@ -28,18 +28,44 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .back-btn:active { background: #e2dde3; transform: scale(0.97); }
 .back-btn::before { content: "←"; margin-right: 6px; font-weight: bold; font-size: 16px; }
 
+/* 🟢 修改：将列表容器改造为支持多状态切换的容器，默认不强制干涉 */
+#list { width: 100%; }
+
+/* 🟢 新增：员工专属两栏网格样式（仅在员工状态下激活） */
+.emp-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  padding: 4px 0;
+}
+
+/* 🟢 修改：员工卡片 UI 独立优化 */
+.emp-card {
+  background: #faf9fa;
+  border: 1px solid #eeeade;
+  border-left: 4px solid var(--primary); /* 增加左侧精致高亮边框 */
+  border-radius: 8px;
+  padding: 14px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+.emp-card:active {
+  background: #f3e2f5;
+  transform: scale(0.97);
+}
+
+/* 🟢 修改：原单行列表样式，保持用于门店和商品 */
 .item { padding:14px 4px; border-bottom:1px solid #f4f2f5; display: flex; align-items: center; justify-content: flex-start; gap: 15px; }
 .item:last-child { border-bottom: none; }
 
-.btn-stock-gate { background: linear-gradient(135deg, var(--primary), #6b266c); color: #fff; padding: 14px; width: 100%; border-radius: 10px; font-size: 15px; font-weight: 700; margin-bottom: 8px; text-align: center; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(74,21,75,0.15);}
+.btn-stock-gate { background: linear-gradient(135deg, var(--primary), #6b266c); color: #fff; padding: 14px; width: 100%; border-radius: 10px; font-size: 15px; font-weight: 700; margin-bottom: 16px; text-align: center; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(74,21,75,0.15);}
 .btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center;}
 .smallbtn { background:#f4f2f5; color:var(--text-main); border: 1px solid #e2dde3; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500;}
 
-/* 🟢 优化：搜索框外层容器，用于放置清除按钮 */
 .search-wrapper { position: relative; margin: 4px 0 12px 0; width: 100%; box-sizing: border-box; }
 .search-wrapper input { width:100%; padding:12px 40px 12px 12px; margin:0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa;}
 .search-wrapper input:focus { outline: none; border-color: var(--primary); background: #fff;}
-/* 🟢 新增：一键清除X按钮样式 */
 .search-clear-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #e2dde3; color: #756676; border-radius: 50%; text-align: center; line-height: 20px; font-size: 12px; cursor: pointer; font-weight: bold; display: none; z-index: 5; }
 .search-clear-btn:active { background: #d0c9d2; }
 
@@ -81,7 +107,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 
 <body>
 
-<div class="header">🍇 MDLZ 亿滋开单与库存系统</div>
+<div class="header">🍇 MDLZ 亿滋开单与库存 system</div>
 
 <div class="card">
 <div id="searchBlock" class="search-wrapper">
@@ -124,7 +150,6 @@ async function init(){
   renderEmployees();
 }
 
-// 🟢 智能搜索控制与X按钮显隐控制
 function handleSearch(){
   const val = document.getElementById('search').value;
   const clearBtn = document.getElementById('clearSearch');
@@ -138,7 +163,12 @@ function handleSearch(){
   else if(STATE === 'STORE') renderStores();
 }
 
-// 🟢 一键清除按钮动作
+// 🟢 抽取重置机制：解决切换页面导致的搜索条件跨页面污染白屏 Bug
+function autoResetSearchState() {
+  document.getElementById('search').value = '';
+  document.getElementById('clearSearch').style.display = 'none';
+}
+
 function clearSearchInput() {
   document.getElementById('search').value = '';
   document.getElementById('clearSearch').style.display = 'none';
@@ -148,30 +178,37 @@ function clearSearchInput() {
 
 function getSearch(){ return document.getElementById('search').value || ''; }
 
+// 🟢 改造：首页员工列表变更为两栏展示
 function renderEmployees(){
   STATE = 'EMP';
   document.getElementById('back').classList.add('hide');
-  document.getElementById('searchBlock').classList.remove('hide'); // 确保搜索外壳显示
+  document.getElementById('searchBlock').classList.remove('hide'); 
 
   const k = getSearch();
   const list = employees.filter(e=> (e.employee_name||'').includes(k) || (e.employee_code||'').includes(k) );
 
-  document.getElementById('list').innerHTML = list.map(e=>`
-    <div class='item' onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
-      <div>
-        <strong style="font-size:16px; color:var(--primary);">${e.employee_name}</strong>
-        <div class='sub'>工号: ${e.employee_code}</div>
-      </div>
+  // 外部用 emp-grid 包裹实现漂亮的两栏网格瀑布流
+  document.getElementById('list').innerHTML = `
+    <div class="emp-grid">
+      ${list.map(e=>`
+        <div class='emp-card' onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
+          <strong style="font-size:16px; color:var(--primary); display:block; margin-bottom:4px;">${e.employee_name}</strong>
+          <div class='sub' style="font-size:12px;">工号: ${e.employee_code}</div>
+        </div>
+      `).join('')}
     </div>
-  `).join('');
+  `;
 }
 
 async function openEmployee(code, name){
+  // 🟢 关键优化：进入新层级前，强行将上一个页面的员工搜索词清洗干净，避免污染门店
+  autoResetSearchState();
+
   STATE = 'STORE';
   currentEmployee = {code, name};
 
   document.getElementById('back').classList.remove('hide');
-  document.getElementById('searchBlock').classList.remove('hide'); // 进入门店列表，搜索框必须显现
+  document.getElementById('searchBlock').classList.remove('hide'); 
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📊 正在载入负责门店档案...</div>';
 
   const r = await client.from('employee_stores').select('atom_code').eq('employee_code', code);
@@ -192,14 +229,14 @@ async function openEmployee(code, name){
 
 function renderStores(){
   STATE = 'STORE';
-  document.getElementById('searchBlock').classList.remove('hide'); // 🟢 修复Bug：确保渲染门店列表时，搜索框强制不被遮挡隐藏
+  document.getElementById('searchBlock').classList.remove('hide'); 
   
   const k = getSearch();
   const f = stores.filter(s=> (s.store_name||'').includes(k) || (s.atom_code||'').includes(k) );
 
   document.getElementById('list').innerHTML = `
     <button class="btn-stock-gate" onclick="openStockManagement()">📦 进入 [${currentEmployee.name}] 的库存管理</button>
-    <div style='font-size:14px; font-weight:700; color:var(--primary); margin: 6px 0 14px 4px;'>🏬 负责门店总数：${stores.length} 家</div>
+    <div style='font-size:14px; font-weight:700; color:var(--primary); margin: 0 0 14px 4px;'>🏬 负责门店总数：${stores.length} 家</div>
 
     <div class='sub' style='font-weight:600;margin-bottom:12px;color:var(--text-main);'>👤 负责门店清单：</div>
     ${f.map(s=>`
@@ -217,7 +254,7 @@ function renderStores(){
 async function openStockManagement(){
   STATE = 'STOCK';
   document.getElementById('back').classList.remove('hide');
-  document.getElementById('searchBlock').classList.add('hide'); // 库存管理界面不使用全局搜索
+  document.getElementById('searchBlock').classList.add('hide'); 
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📦 正在同步仓库实时库存...</div>';
 
   const { data: currentStocks } = await client.from('emp_stocks').select('*').eq('employee_code', currentEmployee.code);
@@ -381,7 +418,7 @@ async function submitStock(){
 async function openStoreHistory(atom, name) {
   STATE = 'HISTORY'; currentStore = { atom, name };
   document.getElementById('back').classList.remove('hide'); 
-  document.getElementById('searchBlock').classList.add('hide'); // 进历史清单，隐藏搜索
+  document.getElementById('searchBlock').classList.add('hide'); 
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📋 正在拉取历史记录...</div>';
   const { data } = await client.from('orders').select('*').eq('atom_code', atom).order('order_date', { ascending: false });
   historyOrders = data || []; renderHistory();
@@ -514,10 +551,13 @@ async function submitOrder(){
 }
 
 function goBack(){
+  // 🟢 关键优化：返回上一级页面时，强行将当前页面的搜索缓存清空，防止后退时污染上一级页面导致空白
+  autoResetSearchState();
+
   if(STATE === 'STOCK') openEmployee(currentEmployee.code, currentEmployee.name);
   else if(STATE === 'DETAIL') renderHistory();
   else if(STATE === 'ORDER') renderHistory();
-  else if(STATE === 'HISTORY') renderStores(); // 🟢 触发此步返回时，renderStores() 内部会自动激活搜索框的显示
+  else if(STATE === 'HISTORY') renderStores(); 
   else if(STATE === 'STORE') renderEmployees();
 }
 
