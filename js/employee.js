@@ -14,7 +14,7 @@ window.renderEmployees = function() {
     (e.employee_name || '').includes(k) || (e.employee_code || '').includes(k)
   );
 
-  // 2. 核心调整：按照拼音首字母进行升序排序 (A-Z)
+  // 2. 后台静默拼音排序
   list.sort((a, b) => {
     const nameA = a.employee_name || '';
     const nameB = b.employee_name || '';
@@ -26,20 +26,15 @@ window.renderEmployees = function() {
     return;
   }
 
-  // 3. 渲染添加了拼音标签提示的员工列表
+  // 3. 干净的渲染，无任何多余字母标签和文本
   document.getElementById('list').innerHTML = `
-    <div style="font-size:13px; color:var(--text-muted); margin-bottom:8px; padding-left:4px;">按拼音首字母排序：</div>
     <div class="emp-grid">
-      ${list.map(e => {
-        const letter = window.utils.getFirstLetter(e.employee_name);
-        return `
-          <div class='emp-card' onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
-            <span style="float:right; font-size:11px; color:var(--text-muted); background:#eee; padding:2px 5px; border-radius:4px;">${letter}</span>
-            <strong style="font-size:16px; color:var(--primary); display:block; margin-bottom:4px;">${e.employee_name}</strong>
-            <div class='sub' style="font-size:12px;">${e.employee_code}</div>
-          </div>
-        `;
-      }).join('')}
+      ${list.map(e => `
+        <div class='emp-card' onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
+          <strong style="font-size:16px; color:var(--primary); display:block; margin-bottom:4px;">${e.employee_name}</strong>
+          <div class='sub' style="font-size:12px;">${e.employee_code}</div>
+        </div>
+      `).join('')}
     </div>
   `;
 };
@@ -53,6 +48,8 @@ window.openEmployee = async function(code, name) {
   document.getElementById('back').classList.remove('hide');
   document.getElementById('editStateBadge').classList.add('hide');
   document.getElementById('searchBlock').classList.remove('hide'); 
+  
+  // 首页加载文案修改为最纯粹的正在加载
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
 
   const r = await window.client.from('employee_stores').select('atom_code').eq('employee_code', code);
