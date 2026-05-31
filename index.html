@@ -129,7 +129,7 @@ function parseReturnHandleText(val) {
 
 async function init(){
   try {
-    document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">⚡ 正在连接数据中心...</div>';
+    document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
     const e = await client.from('employees').select('*');
     const p = await client.from('products').select('*');
     employees = e.data || [];
@@ -201,7 +201,7 @@ async function openEmployee(code, name){
   document.getElementById('back').classList.remove('hide');
   document.getElementById('editStateBadge').classList.add('hide');
   document.getElementById('searchBlock').classList.remove('hide'); 
-  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📊 正在载入负责门店档案...</div>';
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
 
   const r = await client.from('employee_stores').select('atom_code').eq('employee_code', code);
   const codes = (r.data || []).map(i => String(i.atom_code).trim());
@@ -314,7 +314,7 @@ async function openStockManagement(){
   document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('alphabetSidebar').innerHTML = '';
   document.getElementById('searchBlock').classList.add('hide'); 
-  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📦 正在同步仓库实时库存...</div>';
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
 
   const { data: currentStocks } = await client.from('emp_stocks').select('*').eq('employee_code', currentEmployee.code);
   const stockMap = {};
@@ -463,7 +463,7 @@ async function openStoreHistory(atom, name) {
   document.getElementById('editStateBadge').classList.add('hide'); 
   document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('searchBlock').classList.add('hide'); 
-  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📋 正在拉取历史记录与金额...</div>';
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
   
   const { data: ordersData } = await client.from('orders').select('*').eq('atom_code', atom).order('order_date', { ascending: false });
   historyOrders = ordersData || []; 
@@ -518,7 +518,7 @@ async function viewOrderDetail(orderId, orderDate, fromReport = false) {
   STATE = 'DETAIL'; 
   document.getElementById('list').setAttribute('data-from-report', fromReport ? 'true' : 'false');
   document.getElementById('editStateBadge').classList.add('hide'); 
-  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">🔍 正在努力加载商品清单...</div>';
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
   const { data: items } = await client.from('order_items').select('*').eq('order_id', orderId);
   
   let rawItemsJSON = encodeURIComponent(JSON.stringify(items));
@@ -543,7 +543,10 @@ async function viewOrderDetail(orderId, orderDate, fromReport = false) {
       卖进：${detailSaleSum.toFixed(1)} 元 | 赠送：${detailGiftSum.toFixed(1)} 元<br>
       🔴 过期：${detailScrapSum.toFixed(1)} 元
     </div>
-    <button class="smallbtn" style="background:#fdf6ec; color:#e6a23c; margin: 10px 0;" onclick="editExistingOrder('${orderId}', '${orderDate}', '${rawItemsJSON}')">✏️ 修改订单</button>
+    <div style="display:flex; gap:10px; margin: 10px 0;">
+      <button class="smallbtn" style="background:#fdf6ec; color:#e6a23c;" onclick="editExistingOrder('${orderId}', '${orderDate}', '${rawItemsJSON}')">✏️ 修改订单</button>
+      <button class="smallbtn" style="background:#fef0f0; color:#f56c6c; border-color:#fde2e2;" onclick="deleteExistingOrder('${orderId}', '${rawItemsJSON}')">🗑️ 删除订单</button>
+    </div>
     ${items.map(it => {
       const p = products.find(x => x.id == it.product_id) || { product_name: '未知商品', spec: '常规' };
       const parsedReturn = parseReturnHandleText(it.return_handle);
@@ -576,6 +579,66 @@ async function viewOrderDetail(orderId, orderDate, fromReport = false) {
   `;
 }
 
+async function deleteExistingOrder(orderId, rawItemsEncoded) {
+  if (!confirm("⚠️ 确定要彻底删除该笔订单吗？删除后占用的库存将自动回滚，此操作不可撤销！")) return;
+
+  const listEl = document.getElementById('list');
+  const isFromReport = listEl.getAttribute('data-from-report') === 'true';
+  listEl.innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
+
+  try {
+    const items = JSON.parse(decodeURIComponent(rawItemsEncoded));
+
+    const { data: currentStocks } = await client.from('emp_stocks').select('*').eq('employee_code', currentEmployee.code);
+    const liveStockMap = {}; (currentStocks || []).forEach(st => { liveStockMap[st.product_id] = st.stock_qty || 0; });
+
+    const stockUpdates = [];
+    items.forEach(it => {
+      const parsedReturn = parseReturnHandleText(it.return_handle);
+      const pObj = products.find(x => x.id == it.product_id);
+      if (!pObj) return;
+
+      const isOreoSpecial = isSpecialSpecOreo(pObj);
+      const specBox = isOreoSpecial ? (pObj.pcs_per_box || 6) : 1;
+
+      const saleBags = isOreoSpecial ? (Number(it.qty || 0) * specBox) : Number(it.qty || 0);
+      const giftBags = Number(it.gift_qty || 0);
+      const returnBags = Number(parsedReturn.qty || 0);
+
+      let oldNetImpact = saleBags + giftBags;
+      if (parsedReturn.handle === 'RESTORE') {
+        oldNetImpact -= returnBags;
+      }
+
+      const restoredStock = Number(liveStockMap[it.product_id] || 0) + oldNetImpact;
+      stockUpdates.push({
+        employee_code: currentEmployee.code,
+        product_id: it.product_id,
+        stock_qty: restoredStock
+      });
+    });
+
+    await client.from('order_items').delete().eq('order_id', orderId);
+    await client.from('orders').delete().eq('id', orderId);
+
+    if (stockUpdates.length > 0) {
+      await client.from('emp_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_id' });
+    }
+
+    alert("🗑️ 订单删除成功，库存已安全回滚！");
+
+    if (isFromReport) {
+      openSaleReport(selectedReportDate);
+    } else {
+      openStoreHistory(currentStore.atom, currentStore.name);
+    }
+  } catch (err) {
+    console.error(err);
+    alert("❌ 删除失败，请检查网络或重试");
+    viewOrderDetail(orderId, selectedReportDate, isFromReport);
+  }
+}
+
 async function openSaleReport(targetDate) {
   STATE = 'REPORT';
   orderData = null;
@@ -589,7 +652,7 @@ async function openSaleReport(targetDate) {
     targetDate = `${todayObj.getFullYear()}-${String(todayObj.getMonth() + 1).padStart(2, '0')}-${String(todayObj.getDate()).padStart(2, '0')}`;
   }
   selectedReportDate = targetDate;
-  document.getElementById('list').innerHTML = `<div style="color:#756676;padding:10px;">📊 正在拉取 [${targetDate}] 的销售数据统计...</div>`;
+  document.getElementById('list').innerHTML = `<div style="color:#756676;padding:10px;">正在加载...</div>`;
 
   const { data: dayOrders } = await client.from('orders')
     .select('*')
