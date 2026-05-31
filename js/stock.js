@@ -1,3 +1,16 @@
+// === 库存页多网页兼容补丁 ===
+(function() {
+  // 如果在独立的 stock.html 里缺少了旧页面的某些节点，自动补齐防止报错卡死
+  const requiredIds = ['back', 'editStateBadge', 'alphabetSidebar', 'searchBlock'];
+  requiredIds.forEach(id => {
+    if (!document.getElementById(id)) {
+      const dummy = document.createElement('div');
+      dummy.id = id; dummy.className = 'hide'; dummy.style.display = 'none';
+      document.body.appendChild(dummy);
+    }
+  });
+})();
+// === 补丁结束 ===
 window.openStockManagement = async function() {
   window.APP_STATE.STATE = 'STOCK'; 
   window.APP_STATE.orderData = null; 
