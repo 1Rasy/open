@@ -2,109 +2,78 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8" />
-<title>MDLZ 亿滋门店开单系统 V2</title>
+<title>MDLZ 亿滋移动开单与库存系统</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 
 <style>
 :root {
-  --primary: #1d4ed8;       /* 亿滋活力蓝 */
-  --primary-hover: #1e40af; /* 悬浮深蓝 */
-  --bg-main: #f3f4f6;       /* 背景高级灰 */
-  --text-main: #111827;     /* 主文字色 */
-  --text-muted: #6b7280;    /* 辅助灰色 */
-  --card-bg: #ffffff;       /* 卡片纯白 */
+  --primary: #4A154B;       /* 亿滋经典紫 */
+  --primary-hover: #360f37; 
+  --accent: #ffb81c;        
+  --bg-main: #f4f2f5;       
+  --text-main: #1f1121;     
+  --text-muted: #756676;    
+  --card-bg: #ffffff;       
 }
 
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin:0; background: var(--bg-main); color: var(--text-main); padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }
-.header { padding:16px 20px; font-size:20px; font-weight: 700; background: var(--card-bg); position:sticky; top:0; z-index:10; border-bottom:1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.05); text-align: center;}
-.card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03); }
+.header { padding:16px 20px; font-size:20px; font-weight: 700; background: var(--card-bg); position:sticky; top:0; z-index:10; border-bottom:2px solid var(--primary); box-shadow: 0 2px 8px rgba(74,21,75,0.08); text-align: center;}
+.card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); }
 
-/* 舒适的大尺寸返回按钮 */
+/* 返回按钮 */
 .back-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: #f3f4f6;
-  color: var(--text-main);
-  padding: 10px 18px;
-  border-radius: 20px;
-  font-size: 14px;
-  font-weight: 600;
-  margin-bottom: 14px;
-  cursor: pointer;
-  border: 1px solid #e5e7eb;
-  transition: all 0.2s ease;
-  user-select: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: #f4f2f5; color: var(--text-main); padding: 10px 18px; border-radius: 20px;
+  font-size: 14px; font-weight: 600; margin-bottom: 14px; cursor: pointer; border: 1px solid #e2dde3; transition: all 0.2s;
 }
-.back-btn:active { background: #e5e7eb; transform: scale(0.97); }
+.back-btn:active { background: #e2dde3; transform: scale(0.97); }
 .back-btn::before { content: "←"; margin-right: 6px; font-weight: bold; font-size: 16px; }
 
-/* 靠左高密度弹性盒 */
-.item { padding:14px 4px; border-bottom:1px solid #f3f4f6; display: flex; align-items: center; justify-content: flex-start; gap: 15px; }
+/* 列表条目 */
+.item { padding:14px 4px; border-bottom:1px solid #f4f2f5; display: flex; align-items: center; justify-content: flex-start; gap: 15px; }
 .item:last-child { border-bottom: none; }
-.item:active { background:#f8fafc; }
 
-/* 历史列表精美单据卡片 */
-.history-item { background: #f8fafc; padding:14px 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #edf2f7; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: background 0.2s; }
-.history-item:active { background:#f1f5f9; }
+/* 按钮 */
+.btn-stock-gate { background: linear-gradient(135deg, var(--primary), #6b266c); color: #fff; padding: 14px; width: 100%; border-radius: 10px; font-size: 15px; font-weight: 700; margin-bottom: 15px; text-align: center; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(74,21,75,0.15);}
+.btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center;}
+.smallbtn { background:#f4f2f5; color:var(--text-main); border: 1px solid #e2dde3; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500;}
 
-input { width:100%; padding:12px; margin:4px 0 12px 0; border: 1px solid #d1d5db; border-radius: 8px; box-sizing:border-box; font-size:16px; transition: border 0.2s; background: #fafafa;}
+input { width:100%; padding:12px; margin:4px 0 12px 0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa;}
 input:focus { outline: none; border-color: var(--primary); background: #fff;}
 
-button { background: var(--primary); color:#fff; border:none; padding:8px 14px; border-radius:6px; cursor: pointer; font-weight: 500; transition: background 0.2s; }
-button:active { background: var(--primary-hover); }
+/* 计数器 */
+.btn-counter { background:#fbf4fc; color: var(--primary); font-weight: 700; padding: 4px 12px; border-radius: 6px; font-size: 16px; border:none;}
+.btn-counter:active { background: #f3e2f5; }
 
-/* 业务主按钮 */
-.btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center; box-shadow: 0 2px 4px rgba(29, 78, 216, 0.2);}
-.smallbtn { background:#f3f4f6; color:var(--text-main); border: 1px solid #e5e7eb; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500;}
-.smallbtn:active { background: #e5e7eb; }
-
-/* 加减计数器美化 */
-.btn-counter { background:#eff6ff; color: var(--primary); font-weight: 700; padding: 4px 12px; border-radius: 6px; font-size: 16px; }
-.btn-counter:active { background: #dbeafe; }
-
-/* 品牌筛选标签 */
+/* 品牌导航 */
 .brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 8px 0; }
-.brand-badge { background: #f3f4f6; color: var(--text-muted); padding: 8px 16px; border-radius: 20px; font-size: 14px; cursor: pointer; font-weight: 600; border: 1px solid transparent; transition: all 0.2s; }
-.brand-badge.active { background: #eff6ff; color: var(--primary); border-color: #bfdbfe; }
+.brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 8px 16px; border-radius: 20px; font-size: 14px; cursor: pointer; font-weight: 600; }
+.brand-badge.active { background: #fbf4fc; color: var(--primary); border: 1px solid #eecbf5; }
 
-.brand { font-weight:700; margin-top:14px; padding: 4px 0; color: var(--primary); font-size: 16px; display: flex; align-items: center; gap: 6px; }
-.row { display:flex; justify-content:space-between; align-items:center; }
+.brand { font-weight:700; margin-top:14px; padding: 4px 0; color: var(--primary); font-size: 16px; }
 .sub { font-size:13px; color: var(--text-muted); margin-top: 2px; }
 .hide { display:none; }
 
-/* 信息密度控制与靠左紧凑对齐 */
 .prod-info { width: 42%; min-width: 120px; flex-shrink: 0; }
-.prod-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #1f2937;}
+.prod-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .control-group { display: flex; align-items: center; gap: 14px; }
 .ctrl-item { display: flex; align-items: center; font-size: 14px; }
-.ctrl-val { display: inline-block; min-width: 26px; text-align: center; font-weight: 700; color: var(--text-main); font-size: 15px; }
+.ctrl-val { display: inline-block; min-width: 26px; text-align: center; font-weight: 700; }
 
-/* 右下角固定悬浮提交按钮 */
-.float-submit {
-  position: fixed;
-  right: 20px;
-  bottom: 24px;
-  z-index: 99;
-  background: var(--primary);
-  color: #fff;
-  border: none;
-  padding: 14px 26px;
-  border-radius: 50px;
-  font-size: 16px;
-  font-weight: 700;
-  box-shadow: 0 10px 15px -3px rgba(29, 78, 216, 0.4), 0 4px 6px -2px rgba(29, 78, 216, 0.2);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.float-submit:active { background: var(--primary-hover); transform: translateY(1px); }
+.history-item { background: #faf9fa; padding:14px 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #eeeade; display: flex; justify-content: space-between; align-items: center; }
+.float-submit { position: fixed; right: 20px; bottom: 24px; z-index: 99; background: var(--primary); color: #fff; border: none; padding: 14px 26px; border-radius: 50px; font-size: 16px; font-weight: 700; box-shadow: 0 8px 16px rgba(74,21,75,0.3); }
+
+/* 库存输入专属样式 */
+.stock-row { display: flex; flex-direction: column; width: 100%; background: #faf9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; box-sizing: border-box;}
+.stock-input-group { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; align-items: center; }
+.stock-input-box { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-muted); }
+.stock-input-box input { width: 55px; padding: 6px; margin: 0; text-align: center; background: #fff; border: 1px solid #dcd6dd; border-radius: 4px; }
 </style>
 </head>
 
 <body>
 
-<div class="header">🍪 MDLZ 亿滋开单系统</div>
+<div class="header">🍇 MDLZ 亿滋开单与库存系统</div>
 
 <div class="card">
 <input id="search" placeholder="🔍 快速搜索员工 / 门店..." oninput="handleSearch()" />
@@ -121,7 +90,7 @@ const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 let STATE = "EMP"; 
 let employees = [];
-let stores = []; // 存放当前员工过滤出来的门店，动态按需加载
+let stores = []; 
 let products = [];
 
 let currentEmployee = null;
@@ -129,16 +98,15 @@ let currentStore = null;
 let orderData = null;
 let currentSelectedBrand = null; 
 let historyOrders = []; 
+let stockData = {}; 
 
-// 1. 初始化 (不再全量盲查门店表，绕开 1000 条截断魔咒)
 async function init(){
   const e = await client.from('employees').select('*');
+  // 🔴 核心改动：顺便拉取新增加的 pcs_per_box 字段
   const p = await client.from('products').select('*');
 
   employees = e.data || [];
   products = p.data || [];
-  stores = []; // 初始化清空
-
   renderEmployees();
 }
 
@@ -147,11 +115,8 @@ function handleSearch(){
   else if(STATE === 'STORE') renderStores();
 }
 
-function getSearch(){
-  return document.getElementById('search').value || '';
-}
+function getSearch(){ return document.getElementById('search').value || ''; }
 
-// 2. 展现员工列表
 function renderEmployees(){
   STATE = 'EMP';
   document.getElementById('back').classList.add('hide');
@@ -163,55 +128,44 @@ function renderEmployees(){
   document.getElementById('list').innerHTML = list.map(e=>`
     <div class='item' onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
       <div>
-        <strong style="font-size:16px;">${e.employee_name}</strong>
+        <strong style="font-size:16px; color:var(--primary);">${e.employee_name}</strong>
         <div class='sub'>工号: ${e.employee_code}</div>
       </div>
     </div>
   `).join('');
 }
 
-// 3. 点击员工：精准、动态抓取该员工负责的所有门店
 async function openEmployee(code, name){
   STATE = 'STORE';
   currentEmployee = {code, name};
 
   document.getElementById('back').classList.remove('hide');
   document.getElementById('search').classList.remove('hide');
-  document.getElementById('list').innerHTML = '<div style="color:#6b7280;padding:10px;">📊 正在精准载入负责门店...</div>';
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📊 正在载入负责门店档案...</div>';
 
-  // 第一步：先拿该工号下绑定关系链的所有 atom_code 
   const r = await client.from('employee_stores').select('atom_code').eq('employee_code', code);
   const codes = (r.data || []).map(i => String(i.atom_code).trim());
 
   if (codes.length === 0) {
-    document.getElementById('list').innerHTML = `<div class="sub" style="text-align:center;padding:20px;color:#ef4444;">⚠️ 该员工未在系统中绑定任何负责门店</div>`;
+    document.getElementById('list').innerHTML = `
+      <button class="btn-stock-gate" onclick="openStockManagement()">📦 进入 [${currentEmployee.name}] 的库存管理</button>
+      <div class="sub" style="text-align:center;padding:20px;color:red;">⚠️ 该员工未绑定任何门店</div>`;
     return;
   }
 
-  // 第二步：拿着这些 atom_code 进门店主表进行精确的 .in() 查询
-  // 这样无论门店库有几万家，只查出来的这几十家绝不触发 1000 条硬限制限制！
-  const { data: matchedStores, error } = await client
-    .from('stores_dim')
-    .select('*')
-    .in('atom_code', codes);
-
-  if (error) {
-    alert("门店档案加载失败：" + error.message);
-    return;
-  }
-
+  const { data: matchedStores } = await client.from('stores_dim').select('*').in('atom_code', codes);
   stores = matchedStores || [];
   renderStores();
 }
 
-// 4. 渲染当前员工拥有的门店列表
 function renderStores(){
   STATE = 'STORE';
   const k = getSearch();
   const f = stores.filter(s=> (s.store_name||'').includes(k) || (s.atom_code||'').includes(k) );
 
   document.getElementById('list').innerHTML = `
-    <div class='sub' style='font-weight:600;margin-bottom:12px;color:var(--text-main);'>👤 当前员工：${currentEmployee.name}</div>
+    <button class="btn-stock-gate" onclick="openStockManagement()">📦 进入 [${currentEmployee.name}] 的库存管理</button>
+    <div class='sub' style='font-weight:600;margin-bottom:12px;color:var(--text-main);'>👤 负责门店清单：</div>
     ${f.map(s=>`
       <div class='item' onclick="openStoreHistory('${s.atom_code}','${s.store_name}')">
         <div>
@@ -223,105 +177,28 @@ function renderStores(){
   `;
 }
 
-// 5. 点击门店：进入历史开单总揽记录
-async function openStoreHistory(atom, name) {
-  STATE = 'HISTORY';
-  currentStore = { atom, name };
+// 进入库存管理
+async function openStockManagement(){
+  STATE = 'STOCK';
   document.getElementById('back').classList.remove('hide');
-  document.getElementById('search').classList.add('hide'); 
-  document.getElementById('list').innerHTML = '<div style="color:#6b7280;padding:10px;">📋 正在拉取历史记录...</div>';
+  document.getElementById('search').classList.add('hide');
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📦 正在同步仓库实时库存...</div>';
 
-  const { data } = await client
-    .from('orders')
-    .select('*')
-    .eq('atom_code', atom)
-    .order('order_date', { ascending: false });
+  const { data: currentStocks } = await client.from('emp_stocks').select('*').eq('employee_code', currentEmployee.code);
+  const stockMap = {};
+  (currentStocks || []).forEach(st => { stockMap[st.product_id] = st.stock_qty || 0; });
 
-  historyOrders = data || [];
-  renderHistory();
+  stockData = {
+    emp_code: currentEmployee.code,
+    currentStockMap: stockMap,
+    additions: {} // 结构：{ product_id: { cases: 0, boxes: 0, pcs: 0 } }
+  };
+
+  renderStockPage();
 }
 
-function renderHistory(){
-  STATE = 'HISTORY';
-  document.getElementById('list').innerHTML = `
-    <div class='sub' style='font-weight:600;color:#000;'>🏪 门店：${currentStore.name}</div>
-    <div style="margin: 14px 0;">
-       <button class="btn-new-order" onclick="openOrder('${currentStore.atom}','${currentStore.name}')">＋ 新增单据</button>
-    </div>
-    
-    <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:var(--text-muted); display:flex; align-items:center; gap:4px;">📂 历史账单明细 (${historyOrders.length})</div>
-    
-    ${historyOrders.length === 0 ? `<div class="sub" style="text-align:center;padding:40px;color:#9ca3af;">该门店暂无历史开单数据</div>` : 
-      historyOrders.map(o => `
-        <div class="history-item" onclick="viewOrderDetail('${o.id}', '${o.order_date}')">
-          <div>
-            <span style="font-size:15px; font-weight:700; color:#111827;">📅 ${o.order_date}</span>
-            <div class="sub" style="font-size:12px;">单号: ${o.id.substring(0,8)}...</div>
-          </div>
-          <span style="color:var(--primary); font-size:14px; font-weight:600;">详情 →</span>
-        </div>
-      `).join('')
-    }
-  `;
-}
-
-// 6. 查看历史具体单据的明细
-async function viewOrderDetail(orderId, orderDate) {
-  STATE = 'DETAIL';
-  document.getElementById('list').innerHTML = '<div style="color:#6b7280;padding:10px;">🔍 正在努力加载商品清单...</div>';
-
-  const { data: items } = await client.from('order_items').select('*').eq('order_id', orderId);
-
-  if(!items) { alert("明细加载失败"); renderHistory(); return; }
-
-  document.getElementById('list').innerHTML = `
-    <div class='sub' style='font-weight:600;color:#000;'>🏪 门店：${currentStore.name}</div>
-    <div class='sub' style='margin-bottom:14px;'>📅 账单日期：${orderDate}</div>
-    
-    <div style="font-size:14px; font-weight:700; margin-bottom:8px; color:var(--text-muted); border-bottom:1px solid #e5e7eb; padding-bottom:6px;">📦 已订购商品</div>
-    
-    ${items.map(it => {
-      const p = products.find(x => x.id == it.product_id) || { product_name: '未知商品', spec: '', brand: '其他' };
-      return `
-        <div class='item'>
-          <div class='prod-info' style="width:55%;">
-            <div class='prod-name'>${p.spec || ''}${p.product_name}</div>
-            <div class='sub'>${p.brand}</div>
-          </div>
-          <div style="font-size:14px; color:#4b5563; margin-left:auto; text-align:right;">
-            <div>数量: <strong style="color:var(--text-main);font-size:15px;">${it.qty}</strong></div>
-            <div class="sub">价格: ${it.price}元</div>
-          </div>
-        </div>
-      `;
-    }).join('')}
-    
-    <div style="margin-top:24px;">
-       <button style="background:#6b7280; width:100%; padding:11px; border-radius:8px; font-weight:600;" onclick="renderHistory()">返回历史列表</button>
-    </div>
-  `;
-}
-
-// 7. 进入真正的开单录入页面
-function openOrder(atom,name){
-  STATE = 'ORDER';
-  
-  // 采用本地时区防止半夜开单变成前一天
-  const d = new Date();
-  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-  orderData = { atom, name, date: today, items: {} };
-  currentSelectedBrand = null; 
-  renderOrder();
-}
-
-function selectBrand(brandName) {
-  currentSelectedBrand = brandName;
-  renderOrder();
-}
-
-function renderOrder(){
-  STATE = 'ORDER';
+function renderStockPage(){
+  STATE = 'STOCK';
 
   const grouped = {};
   products.forEach(p=>{
@@ -334,110 +211,226 @@ function renderOrder(){
   const displayProducts = grouped[currentSelectedBrand] || [];
 
   document.getElementById('list').innerHTML = `
-    <div class='sub' style='font-weight:600;color:#000;'>🏪 门店：${orderData.name}</div>
-    <div class='row' style='margin-bottom:10px;'>
-      <span style="font-size:15px;font-weight:700;">📅 <span id='dateText'>${orderData.date}</span></span>
-      <button class='smallbtn' onclick='editDate()'>修改日期</button>
-    </div>
-
-    <!-- 顶置品牌切换条 -->
+    <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px;'>🏢 账户主体：${currentEmployee.name} 的随身仓库</div>
     <div class='brand-nav'>
       ${brands.map(b => `<div class="brand-badge ${b === currentSelectedBrand ? 'active' : ''}" onclick="selectBrand('${b}')">${b}</div>`).join('')}
     </div>
+    <div class='brand'>✨ 品牌仓：${currentSelectedBrand}</div>
 
+    ${displayProducts.map(p => {
+      const specCase = p.pcs_per_case || 24; // 每整件多少个 (炫迈是36)
+      const specBox = p.pcs_per_box || 0;    // 每中盒多少个 (炫迈是9，奥利奥是0)
+      
+      const totalPcs = stockData.currentStockMap[p.id] || 0; 
+
+      // 🔴 三级多包装核心换算算法
+      let displayCases = 0;
+      let displayBoxes = 0;
+      let displayPcs = 0;
+
+      if (specBox > 0) {
+        // 说明有中盒层级（如炫迈：1件=4中盒=36个）
+        displayCases = Math.floor(totalPcs / specCase);
+        let remPcs = totalPcs % specCase;
+        displayBoxes = Math.floor(remPcs / specBox);
+        displayPcs = remPcs % specBox;
+      } else {
+        // 普通两级换算（如奥利奥：1件=24个）
+        displayCases = Math.floor(totalPcs / specCase);
+        displayPcs = totalPcs % specCase;
+      }
+
+      // 获取暂存输入
+      const inputCases = stockData.additions[p.id]?.cases || '';
+      const inputBoxes = stockData.additions[p.id]?.boxes || '';
+      const inputPcs = stockData.additions[p.id]?.pcs || '';
+
+      return `
+        <div class="stock-row">
+          <div style="font-weight:600; font-size:15px; color:var(--primary);">
+            ${p.spec || ''}${p.product_name}
+            <span class="sub" style="font-size:12px; font-weight:normal;">
+              (${specBox > 0 ? `1件=${Math.round(specCase/specBox)}中盒×${specBox}个` : `1件=${specCase}个`})
+            </span>
+          </div>
+          
+          <!-- 实时当前实存库存展示 -->
+          <div style="font-size:13px; margin-top:6px; color:#333; background:#f0ebf1; padding:6px 10px; border-radius:6px;">
+            当前库存: 
+            <strong>${displayCases}</strong> 件 
+            ${specBox > 0 ? `<strong>${displayBoxes}</strong> 中盒 ` : ''}
+            <strong>${displayPcs}</strong> 个
+            <span class="sub"> (共${totalPcs}个)</span>
+          </div>
+          
+          <!-- 动态输入框：自动识别是否展示“中盒”输入框 -->
+          <div class="stock-input-group">
+            <div class="stock-input-box">
+              <span>➕</span>
+              <input type="number" placeholder="0" value="${inputCases}" oninput="updateStockInput('${p.id}', 'cases', this.value)">
+              <span>件</span>
+            </div>
+            
+            ${specBox > 0 ? `
+            <div class="stock-input-box">
+              <input type="number" placeholder="0" value="${inputBoxes}" oninput="updateStockInput('${p.id}', 'boxes', this.value)">
+              <span>中盒</span>
+            </div>
+            ` : ''}
+
+            <div class="stock-input-box">
+              <input type="number" placeholder="0" value="${inputPcs}" oninput="updateStockInput('${p.id}', 'pcs', this.value)">
+              <span>个</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('')}
+
+    <button class='float-submit' onclick='submitStock()'>💾 保存并更新库存</button>
+  `;
+}
+
+function updateStockInput(prodId, type, val){
+  if(!stockData.additions[prodId]) stockData.additions[prodId] = { cases: 0, boxes: 0, pcs: 0 };
+  stockData.additions[prodId][type] = parseInt(val) || 0;
+}
+
+// 提交增量库存
+async function submitStock(){
+  const addIds = Object.keys(stockData.additions);
+  let hasData = false;
+  const updates = [];
+
+  for(let id of addIds){
+    const p = products.find(x => x.id == id);
+    const specCase = p.pcs_per_case || 24;
+    const specBox = p.pcs_per_box || 0;
+
+    const addedCases = stockData.additions[id].cases || 0;
+    const addedBoxes = stockData.additions[id].boxes || 0;
+    const addedPcs = stockData.additions[id].pcs || 0;
+
+    // 🔴 智能换算公式：将填入的 件、中盒、个 统一打碎换算成最终纯“个”数
+    let increment = 0;
+    if (specBox > 0) {
+      increment = (addedCases * specCase) + (addedBoxes * specBox) + addedPcs;
+    } else {
+      increment = (addedCases * specCase) + addedPcs;
+    }
+
+    if(increment > 0){
+      hasData = true;
+      const currentTotal = stockData.currentStockMap[id] || 0;
+      updates.push({
+        employee_code: stockData.emp_code,
+        product_id: id,
+        stock_qty: currentTotal + increment
+      });
+    }
+  }
+
+  if(!hasData){ alert("请至少输入需要增加的件数、中盒数或个数！"); return; }
+
+  const { error } = await client.from('emp_stocks').upsert(updates, { onConflict: 'employee_code,product_id' });
+  if(error){ alert("库存更新失败：" + error.message); return; }
+
+  alert("🌟 仓库库存同步成功！已自动完成【件-中盒-散件】深度多级换算。");
+  openEmployee(currentEmployee.code, currentEmployee.name);
+}
+
+// 后面为开单和历史记录逻辑，保持不变
+async function openStoreHistory(atom, name) {
+  STATE = 'HISTORY'; currentStore = { atom, name };
+  document.getElementById('back').classList.remove('hide'); document.getElementById('search').classList.add('hide'); 
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📋 正在拉取历史记录...</div>';
+  const { data } = await client.from('orders').select('*').eq('atom_code', atom).order('order_date', { ascending: false });
+  historyOrders = data || []; renderHistory();
+}
+
+function renderHistory(){
+  STATE = 'HISTORY';
+  document.getElementById('list').innerHTML = `
+    <div class='sub' style='font-weight:600;color:#000;'>🏪 门店：${currentStore.name}</div>
+    <div style="margin: 14px 0;">
+       <button class="btn-new-order" onclick="openOrder('${currentStore.atom}','${currentStore.name}')">＋ 新增单据</button>
+    </div>
+    <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:var(--text-muted);">📂 历史账单明细 (${historyOrders.length})</div>
+    ${historyOrders.length === 0 ? `<div class="sub" style="text-align:center;padding:40px;color:#9ca3af;">该门店暂无历史开单数据</div>` : 
+      historyOrders.map(o => `
+        <div class="history-item" onclick="viewOrderDetail('${o.id}', '${o.order_date}')">
+          <div><span style="font-size:15px; font-weight:700; color:#111827;">📅 ${o.order_date}</span><div class="sub" style="font-size:12px;">单号: ${o.id.substring(0,8)}...</div></div>
+          <span style="color:var(--primary); font-size:14px; font-weight:600;">详情 →</span>
+        </div>
+      `).join('')}
+  `;
+}
+
+async function viewOrderDetail(orderId, orderDate) {
+  STATE = 'DETAIL'; document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">🔍 正在努力加载商品清单...</div>';
+  const { data: items } = await client.from('order_items').select('*').eq('order_id', orderId);
+  if(!items) { alert("明细加载失败"); renderHistory(); return; }
+  document.getElementById('list').innerHTML = `
+    <div class='sub' style='font-weight:600;color:#000;'>🏪 门店：${currentStore.name}</div><div class='sub' style='margin-bottom:14px;'>📅 账单日期：${orderDate}</div>
+    <div style="font-size:14px; font-weight:700; margin-bottom:8px; color:var(--text-muted); border-bottom:1px solid #e5e7eb; padding-bottom:6px;">📦 已订购商品</div>
+    ${items.map(it => {
+      const p = products.find(x => x.id == it.product_id) || { product_name: '未知商品', spec: '', brand: '其他' };
+      return `<div class='item'><div class='prod-info' style="width:55%;"><div class='prod-name'>${p.spec || ''}${p.product_name}</div><div class='sub'>${p.brand}</div></div><div style="font-size:14px; color:#4b5563; margin-left:auto; text-align:right;"><div>数量: <strong style="color:var(--text-main);font-size:15px;">${it.qty}</strong></div><div class="sub">价格: ${it.price}元</div></div></div>`;
+    }).join('')}
+    <div style="margin-top:24px;"><button style="background:#6b7280; width:100%; padding:11px; border-radius:8px; font-weight:600;" onclick="renderHistory()">返回历史列表</button></div>
+  `;
+}
+
+function openOrder(atom,name){
+  STATE = 'ORDER'; const d = new Date(); const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  orderData = { atom, name, date: today, items: {} }; currentSelectedBrand = null; renderOrder();
+}
+
+function selectBrand(brandName) { currentSelectedBrand = brandName; if(STATE === 'ORDER') renderOrder(); else if(STATE === 'STOCK') renderStockPage(); }
+
+function renderOrder(){
+  STATE = 'ORDER'; const grouped = {}; products.forEach(p=>{ if(!grouped[p.brand]) grouped[p.brand]=[]; grouped[p.brand].push(p); });
+  const brands = Object.keys(grouped); if (!currentSelectedBrand && brands.length > 0) currentSelectedBrand = brands[0];
+  const displayProducts = grouped[currentSelectedBrand] || [];
+  document.getElementById('list').innerHTML = `
+    <div class='sub' style='font-weight:600;color:#000;'>🏪 门店：${orderData.name}</div><div class='row' style='margin-bottom:10px;'><span style="font-size:15px;font-weight:700;">📅 <span id='dateText'>${orderData.date}</span></span><button class='smallbtn' onclick='editDate()'>修改日期</button></div>
+    <div class='brand-nav'>${brands.map(b => `<div class="brand-badge ${b === currentSelectedBrand ? 'active' : ''}" onclick="selectBrand('${b}')">${b}</div>`).join('')}</div>
     <div class='brand'>✨ 当前展现品牌：${currentSelectedBrand}</div>
-    
-    <!-- 精简紧凑型布局：商品名字 + 控制件同行紧密靠左排列 -->
     ${displayProducts.map(p=>`
-      <div class='item'>
-        <div class='prod-info'>
-          <div class='prod-name'>${p.spec || ''}${p.product_name}</div>
-        </div>
-        <div class='control-group'>
-          <div class='ctrl-item'>
-            <button class='btn-counter' onclick="changeQty('${p.id}',-1)">-</button>
-            <span class='ctrl-val' id='q_${p.id}'>${orderData.items[p.id]?.qty||0}</span>
-            <button class='btn-counter' onclick="changeQty('${p.id}',1)">+</button>
-          </div>
-          <div class='ctrl-item'>
-            <button class='btn-counter' onclick="changePrice('${p.id}',-0.1)">-</button>
-            <span class='ctrl-val' id='p_${p.id}' style='min-width:38px;'>${orderData.items[p.id]?.price ?? p.default_price}</span>
-            <button class='btn-counter' onclick="changePrice('${p.id}',0.1)">+</button>
-            <span style="font-size:12px;color:var(--text-muted);margin-left:2px;">元</span>
-          </div>
-        </div>
-      </div>
+      <div class='item'><div class='prod-info'><div class='prod-name'>${p.spec || ''}${p.product_name}</div></div><div class='control-group'><div class='ctrl-item'><button class='btn-counter' onclick="changeQty('${p.id}',-1)">-</button><span class='ctrl-val' id='q_${p.id}'>${orderData.items[p.id]?.qty||0}</span><button class='btn-counter' onclick="changeQty('${p.id}',1)">+</button></div><div class='ctrl-item'><button class='btn-counter' onclick="changePrice('${p.id}',-0.1)">-</button><span class='ctrl-val' id='p_${p.id}' style='min-width:38px;'>${orderData.items[p.id]?.price ?? p.default_price}</span><button class='btn-counter' onclick="changePrice('${p.id}',0.1)">+</button><span style="font-size:12px;color:var(--text-muted);margin-left:2px;">元</span></div></div></div>
     `).join('')}
-
-    <!-- 右下角悬浮固定提交 -->
     <button class='float-submit' onclick='submitOrder()'>🚀 提交账单</button>
   `;
 }
 
 function changeQty(id,v){
-  if(!orderData.items[id]){
-    const p = products.find(x=>x.id==id);
-    orderData.items[id] = {qty:0, price:p.default_price};
-  }
-  orderData.items[id].qty = Math.max(0, (orderData.items[id].qty||0)+v);
-  document.getElementById('q_'+id).innerText = orderData.items[id].qty;
+  if(!orderData.items[id]){ const p = products.find(x=>x.id==id); orderData.items[id] = {qty:0, price:p.default_price}; }
+  orderData.items[id].qty = Math.max(0, (orderData.items[id].qty||0)+v); document.getElementById('q_'+id).innerText = orderData.items[id].qty;
 }
-
 function changePrice(id,v){
-  if(!orderData.items[id]){
-    const p = products.find(x=>x.id==id);
-    orderData.items[id] = {qty:0, price:p.default_price};
-  }
-  orderData.items[id].price = +(orderData.items[id].price + v).toFixed(1);
-  document.getElementById('p_'+id).innerText = orderData.items[id].price;
+  if(!orderData.items[id]){ const p = products.find(x=>x.id==id); orderData.items[id] = {qty:0, price:p.default_price}; }
+  orderData.items[id].price = +(orderData.items[id].price + v).toFixed(1); document.getElementById('p_'+id).innerText = orderData.items[id].price;
 }
-
-function editDate(){
-  const d = prompt('修改日期', orderData.date);
-  if(d) { orderData.date = d; document.getElementById('dateText').innerText = d; }
-}
+function editDate(){ const d = prompt('修改日期', orderData.date); if(d) { orderData.date = d; document.getElementById('dateText').innerText = d; } }
 
 async function submitOrder(){
-  const hasItems = Object.keys(orderData.items).some(id => orderData.items[id].qty > 0);
-  if(!hasItems){ alert("请至少选择一件商品数量大于0"); return; }
-
-  const { data: o, error } = await client.from('orders').insert({
-    employee_code: currentEmployee.code,
-    atom_code: orderData.atom,
-    order_date: orderData.date
-  }).select().single();
-
+  const hasItems = Object.keys(orderData.items).some(id => orderData.items[id].qty > 0); if(!hasItems){ alert("请至少选择一件商品数量大于0"); return; }
+  const { data: o, error } = await client.from('orders').insert({ employee_code: currentEmployee.code, atom_code: orderData.atom, order_date: orderData.date }).select().single();
   if(error){ alert("主订单提交失败：" + error.message); return; }
-
-  const items = [];
-  Object.keys(orderData.items).forEach(id=>{
-    const it = orderData.items[id];
-    if(it.qty > 0){
-      items.push({ order_id: o.id, product_id: id, qty: it.qty, price: it.price });
-    }
-  });
-
-  if(items.length > 0){
-    const { error: itemErr } = await client.from('order_items').insert(items);
-    if(itemErr){ alert("商品明细提交失败：" + itemErr.message); return; }
-  }
-
-  alert('订单提交成功！');
-  openStoreHistory(currentStore.atom, currentStore.name);
+  const items = []; Object.keys(orderData.items).forEach(id=>{ const it = orderData.items[id]; if(it.qty > 0){ items.push({ order_id: o.id, product_id: id, qty: it.qty, price: it.price }); } });
+  if(items.length > 0){ const { error: itemErr } = await client.from('order_items').insert(items); if(itemErr){ alert("商品明细提交失败：" + itemErr.message); return; } }
+  alert('订单提交成功！'); openStoreHistory(currentStore.atom, currentStore.name);
 }
 
-// 多层级清晰回退导航
 function goBack(){
-  if(STATE === 'DETAIL') renderHistory();
+  if(STATE === 'STOCK') openEmployee(currentEmployee.code, currentEmployee.name);
+  else if(STATE === 'DETAIL') renderHistory();
   else if(STATE === 'ORDER') renderHistory();
   else if(STATE === 'HISTORY') renderStores();
   else if(STATE === 'STORE') renderEmployees();
 }
 
-// 唤醒初始化
 init();
-
 </script>
-
 </body>
 </html>
