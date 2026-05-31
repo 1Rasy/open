@@ -61,7 +61,20 @@
     currentStore: { atom: new URLSearchParams(window.location.search).get('atom_code'), name: new URLSearchParams(window.location.search).get('store_name') }, 
     orderData: null
   };
+// 全量捕获所有的切换动作，不管原本 utils 里的 onclick 叫什么名字，只要触发一律强制刷新本页渲染
+window.switchBrand = window.filterBrand = window.changeBrand = function(b) {
+  window.APP_STATE.currentSelectedBrand = b;
+  window.APP_STATE.currentSelectedSpec = "ALL";
+  if (typeof window.renderOrder === 'function') window.renderOrder();
+};
 
+window.switchSpec = window.filterSpec = window.changeSpec = function(s) {
+  window.APP_STATE.currentSelectedSpec = s;
+  if (typeof window.renderOrder === 'function') window.renderOrder();
+};
+
+// 补丁：防止原本的工具类生成 HTML 时找不到对应的点击作用域
+if (!window.utils) window.utils = {};
   // 修复核心：重写通用工具类里的状态流转，直接强制指向本页的刷新
   window.switchBrand = function(b) {
     window.APP_STATE.currentSelectedBrand = b;
