@@ -43,7 +43,7 @@
 <script src="js/stock.js"></script>
 
 <script>
-  // 多网页节点补丁防卡死
+  // 补齐虚拟节点防止 stock.js 初始化报错
   ['back', 'editStateBadge', 'alphabetSidebar', 'searchBlock'].forEach(id => {
     if (!document.getElementById(id)) {
       const dummy = document.createElement('div'); dummy.id = id; dummy.className = 'hide'; dummy.style.display = 'none';
@@ -51,32 +51,31 @@
     }
   });
 
+  const empCode = new URLSearchParams(window.location.search).get('emp_code');
+  const empName = new URLSearchParams(window.location.search).get('emp_name');
+
   window.APP_STATE = {
     STATE: "STOCK", products: [], currentSelectedSpec: "ALL", currentSelectedBrand: null,
-    currentEmployee: { code: new URLSearchParams(window.location.search).get('emp_code'), name: new URLSearchParams(window.location.search).get('emp_name') }, 
-    stockData: {}
+    currentEmployee: { code: empCode, name: empName }, stockData: {}
   };
-// 全量捕获所有的切换动作，不管原本 utils 里的 onclick 叫什么名字，只要触发一律强制刷新本页库存渲染
-window.switchBrand = window.filterBrand = window.changeBrand = function(b) {
-  window.APP_STATE.currentSelectedBrand = b;
-  window.APP_STATE.currentSelectedSpec = "ALL";
-  if (typeof window.renderStockPage === 'function') window.renderStockPage();
-};
 
-window.switchSpec = window.filterSpec = window.changeSpec = function(s) {
-  window.APP_STATE.currentSelectedSpec = s;
-  if (typeof window.renderStockPage === 'function') window.renderStockPage();
-};
-  // 修复核心：重写通用切换逻辑，让它在本页独立触发 renderStockPage
-  window.switchBrand = function(b) {
+  // 霸道拦截核心：不管点击触发了全局的哪个命名空间，一律强制刷新库存页面
+  const doStockBrandSwitch = function(b) {
     window.APP_STATE.currentSelectedBrand = b;
     window.APP_STATE.currentSelectedSpec = "ALL";
     window.renderStockPage();
   };
-  window.switchSpec = function(s) {
+  const doStockSpecSwitch = function(s) {
     window.APP_STATE.currentSelectedSpec = s;
     window.renderStockPage();
   };
+
+  window.switchBrand = window.filterBrand = window.changeBrand = doStockBrandSwitch;
+  window.switchSpec = window.filterSpec = window.changeSpec = doStockSpecSwitch;
+  if(window.utils) {
+    window.utils.switchBrand = window.utils.filterBrand = doStockBrandSwitch;
+    window.utils.switchSpec = window.utils.filterSpec = doStockSpecSwitch;
+  }
 
   async function initStockPage() {
     document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
@@ -87,7 +86,7 @@ window.switchSpec = window.filterSpec = window.changeSpec = function(s) {
   }
 
   function backToStore() {
-    window.location.href = `store.html?emp_code=${window.APP_STATE.currentEmployee.code}&emp_name=${encodeURIComponent(window.APP_STATE.currentEmployee.name)}`;
+    window.location.href = `store.html?emp_code=${empCode}&emp_name=${encodeURIComponent(empName)}`;
   }
 
   const originalSubmitStock = window.submitStock;
