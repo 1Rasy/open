@@ -1,3 +1,25 @@
+// === 多网页兼容补丁：防止找不到旧节点导致整页卡死 ===
+(function() {
+  const safeGet = (id) => document.getElementById(id) || { classList: { add:()=>{}, remove:()=>{} }, style: {} };
+  
+  // 如果在独立的 store.html 里缺了旧首页的节点，自动用空对象顶替，防止 js 报错
+  if (!document.getElementById('editStateBadge')) {
+    window.addEventListener('DOMContentLoaded', () => {
+      if (!document.getElementById('editStateBadge')) {
+        const dummy = document.createElement('div');
+        dummy.id = 'editStateBadge'; dummy.className = 'hide';
+        dummy.style.display = 'none';
+        document.body.appendChild(dummy);
+      }
+      if (!document.getElementById('alphabetSidebar')) {
+        const dummy2 = document.createElement('div');
+        dummy2.id = 'alphabetSidebar'; dummy2.className = 'hide';
+        document.body.appendChild(dummy2);
+      }
+    });
+  }
+})();
+// === 补丁结束 ===
 window.renderStores = function() {
   window.APP_STATE.STATE = 'STORE';
   window.APP_STATE.orderData = null; 
