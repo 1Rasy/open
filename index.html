@@ -37,7 +37,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .picker-wrapper { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; color: var(--text-muted); }
 .picker-wrapper span.label-txt { font-weight: 500; color: #665c67; }
 .picker-wrapper span.unit-txt { font-weight: 600; color: var(--text-main); font-size: 13px; }
-.live-row-net-txt { font-size: 13px; font-weight: bold; color: var(--primary); background: #f6eef7; padding: 5px 8px; border-radius: 6px; min-width: 65px; text-align: center; border: 1px dashed #d6b8da; }
 
 .ios-picker {
   background: #f4f2f5;
@@ -56,7 +55,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 }
 .ios-picker:focus { border-color: var(--primary); background: #fff; }
 
-/* 售后与赠送面板 */
+/* 售后面板 */
 .aftersale-panel { background: #fdfaf6; border: 1px dashed #f5dab1; border-radius: 8px; padding: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
 .aftersale-row-picks { display: flex; align-items: center; gap: 12px; width: 100%; border-bottom: 1px dashed #faebd7; padding-bottom: 8px; }
 .aftersale-options { display: flex; gap: 14px; margin-top: 2px; }
@@ -92,6 +91,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .alphabet-letter:active { color: var(--accent); transform: scale(1.3); }
 .amount-summary-banner { background: #fdfdfd; border: 1px solid #ebdfee; border-left: 5px solid var(--primary); padding: 10px 12px; border-radius: 6px; margin: 10px 0; font-size: 14px; color: #2b1d2c; }
 .amount-summary-banner strong { font-size: 15px; }
+
+/* 订单明细双行网格排版 */
+.detail-grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 16px; margin-top: 4px; font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+.detail-grid-item { display: flex; justify-content: space-between; align-items: center; }
 </style>
 </head>
 <body>
@@ -550,9 +553,9 @@ function renderHistory(){
             <span style="color:var(--primary); font-size:14px;">详情 →</span>
           </div>
           <div style="font-size: 13px; color: var(--text-muted); line-height:1.45;">
-            <span style="color:#2b1d2c; font-weight:700; font-size:14px;">💵 实收：${(o.netRevenue||0).toFixed(1)} 元</span><br>
+            <span style="color:#2b1d2c; font-weight:700; font-size:14px;">💵 实际收入：${(o.netRevenue||0).toFixed(1)} 元</span><br>
             卖进: ${(o.saleSum||0).toFixed(1)} 元 | 赠送: ${(o.giftSum||0).toFixed(1)} 元<br>
-            🟢良品: ${(o.restoreSum||0).toFixed(1)} 元 | 🔴报损: ${(o.scrapSum||0).toFixed(1)} 元
+            🔴 过期: ${(o.scrapSum||0).toFixed(1)} 元
           </div>
         </div>
       `).join('')}
@@ -583,23 +586,36 @@ async function viewOrderDetail(orderId, orderDate) {
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">${currentStore.name}</div>
     <div class="amount-summary-banner" style="line-height:1.55;">
-      <span style="font-size:16px; color:var(--primary);">💵 <strong>实收：${detailNetRevenue.toFixed(1)} 元</strong></span><br>
+      <span style="font-size:16px; color:var(--primary);">💵 <strong>实际收入：${detailNetRevenue.toFixed(1)} 元</strong></span><br>
       卖进：${detailSaleSum.toFixed(1)} 元 | 赠送：${detailGiftSum.toFixed(1)} 元<br>
-      🟢良品：${detailRestoreSum.toFixed(1)} 元 | 🔴报损：${detailScrapSum.toFixed(1)} 元
+      🔴 过期：${detailScrapSum.toFixed(1)} 元
     </div>
     <button class="smallbtn" style="background:#fdf6ec; color:#e6a23c; margin: 10px 0;" onclick="editExistingOrder('${orderId}', '${orderDate}', '${rawItemsJSON}')">✏️ 修改订单</button>
     ${items.map(it => {
       const p = products.find(x => x.id == it.product_id) || { product_name: '未知商品', spec: '常规' };
       const parsedReturn = parseReturnHandleText(it.return_handle);
+      
+      const rowRes = getLiveRowAmounts(p, it.qty || 0, it.price || 0, it.gift_qty || 0, parsedReturn.qty || 0, parsedReturn.handle);
+      const rowNetRevenue = rowRes.saleAmount - rowRes.scrapAmount - rowRes.giftAmount;
+
       return `
         <div class='item'>
-          <div class="item-main-row">
-            <div class='prod-info'>
-              <div class='prod-name'>${p.spec} ${p.product_name}</div>
-              ${parsedReturn.qty > 0 ? `<div style="font-size:12px; color:${parsedReturn.handle==='SCRAP'?'red':'#e6a23c'};">${parsedReturn.handle==='SCRAP'?'🔴 报损':'🟢 良品'}: ${parsedReturn.qty}个</div>` : ''}
-              ${(it.gift_qty||0) > 0 ? `<div style="font-size:12px; color:#1890ff;">🎁 赠送: ${it.gift_qty}个</div>` : ''}
+          <div style="font-weight:600; font-size:15px; color:var(--primary); margin-bottom: 6px;">${p.spec} ${p.product_name}</div>
+          
+          <div class="detail-grid-container">
+            <div class="detail-grid-item">
+              <span>实际收入: <strong style="color:var(--primary); font-size:14px;">${rowNetRevenue.toFixed(1)}元</strong></span>
             </div>
-            <div style="text-align:right; font-size:14px;">销售: <strong>${it.qty}</strong> 个<br><span class="sub">${Number(it.price).toFixed(getPriceDecimalPlaces(it.product_id))}元</span></div>
+            <div class="detail-grid-item" style="text-align: right; justify-content: flex-end;">
+              <span>卖进: <strong>${it.qty}</strong> 个 × ${Number(it.price).toFixed(getPriceDecimalPlaces(it.product_id))}元</span>
+            </div>
+            
+            <div class="detail-grid-item">
+              <span>赠送: <span style="color:#1890ff;">${it.gift_qty || 0}</span> 个</span>
+            </div>
+            <div class="detail-grid-item" style="text-align: right; justify-content: flex-end;">
+              <span>过期: <span style="color:red;">${parsedReturn.handle === 'SCRAP' ? parsedReturn.qty : 0}</span> 个</span>
+            </div>
           </div>
         </div>`;
     }).join('')}
@@ -672,24 +688,10 @@ function calculateLiveOrderAmounts() {
   let liveNetRevenue = s - scr - g;
 
   document.getElementById('liveAmountBanner').innerHTML = `
-    <span style="font-size:15px; color:var(--primary);">💵 <strong>实收：${liveNetRevenue.toFixed(1)} 元</strong></span><br>
+    <span style="font-size:15px; color:var(--primary);">💵 <strong>实际收入：${liveNetRevenue.toFixed(1)} 元</strong></span><br>
     卖进：${s.toFixed(1)} 元 | 赠送：${g.toFixed(1)} 元<br>
-    🟢良品：${res.toFixed(1)} 元 | 🔴报损：${scr.toFixed(1)} 元
+    🔴 过期：${scr.toFixed(1)} 元
   `;
-
-  products.forEach(p => {
-    const item = orderData.items[p.id];
-    const spanEl = document.getElementById(`row_net_${p.id}`);
-    if (spanEl) {
-      if (item) {
-        const rowRes = getLiveRowAmounts(p, item.qty || 0, item.price || 0, item.gift_qty || 0, item.return_qty || 0, item.return_handle);
-        const rowNet = rowRes.saleAmount - rowRes.scrapAmount - rowRes.giftAmount;
-        spanEl.innerText = `实收:${rowNet.toFixed(1)}`;
-      } else {
-        spanEl.innerText = `实收:0.0`;
-      }
-    }
-  });
 }
 
 function renderOrder(){
@@ -709,20 +711,16 @@ function renderOrder(){
       
       const itData = orderData.items[p.id] || { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
       const stepPlaces = getPriceDecimalPlaces(p.id);
-      
-      const initialRowRes = getLiveRowAmounts(p, itData.qty, itData.price, itData.gift_qty, itData.return_qty, itData.return_handle);
-      const initialRowNet = initialRowRes.saleAmount - initialRowRes.scrapAmount - initialRowRes.giftAmount;
 
       return `
         <div class='item'>
           <div class="item-main-row">
             <div class='prod-info'>
               <div class='prod-name'>${p.spec} ${p.product_name}</div>
-              <button id="btn_as_${p.id}" class="btn-aftersale-trigger ${itData.return_qty > 0 || itData.gift_qty > 0 ? 'active' : ''}" onclick="toggleAfterSalePanel('${p.id}')">🔄 售后与赠送</button>
+              <button id="btn_as_${p.id}" class="btn-aftersale-trigger ${itData.return_qty > 0 || itData.gift_qty > 0 ? 'active' : ''}" onclick="toggleAfterSalePanel('${p.id}')">🔄 收回及赠送</button>
             </div>
             
             <div class='control-group'>
-              <div id="row_net_${p.id}" class="live-row-net-txt">实收:${initialRowNet.toFixed(1)}</div>
               <div class="picker-wrapper">
                 <span class="label-txt">销售:</span>
                 <select class="ios-picker" onchange="pickerChangeQty('${p.id}', this.value)">
@@ -743,7 +741,7 @@ function renderOrder(){
           <div id="panel_${p.id}" class="aftersale-panel ${itData.showPanel ? '' : 'hide'}">
             <div class="aftersale-row-picks">
               <div class="picker-wrapper" style="flex:1;">
-                <span class="label-txt">售后:</span>
+                <span class="label-txt">收回数量:</span>
                 <select class="ios-picker" onchange="pickerChangeReturnQty('${p.id}', this.value)">
                   ${makePureQtyOptionsHtml(100, itData.return_qty)}
                 </select>
@@ -760,8 +758,8 @@ function renderOrder(){
             </div>
 
             <div class="aftersale-options">
-              <label><input type="radio" name="handle_${p.id}" value="RESTORE" ${itData.return_handle!=='SCRAP'?'checked':''} onchange="setReturnHandle('${p.id}','RESTORE')">🟢良品</label>
-              <label><input type="radio" name="handle_${p.id}" value="SCRAP" ${itData.return_handle==='SCRAP'?'checked':''} onchange="setReturnHandle('${p.id}','SCRAP')">🔴报损</label>
+              <label><input type="radio" name="handle_${p.id}" value="RESTORE" ${itData.return_handle!=='SCRAP'?'checked':''} onchange="setReturnHandle('${p.id}','RESTORE')">🟢 能卖</label>
+              <label><input type="radio" name="handle_${p.id}" value="SCRAP" ${itData.return_handle==='SCRAP'?'checked':''} onchange="setReturnHandle('${p.id}','SCRAP')">🔴 过期</label>
             </div>
           </div>
         </div>`;
@@ -797,7 +795,7 @@ async function submitOrder(){
   });
 
   if (grandTotalQty === 0) {
-    alert("⚠️ 订单中没有填写任何有效的销售、赠送或售后数量，无法提交空白单据！");
+    alert("⚠️ 订单中没有填写任何有效的销售、赠送或收回数量，无法提交空白单据！");
     return;
   }
 
