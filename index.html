@@ -136,21 +136,40 @@ function getPriceDecimalPlaces(prodId) {
   return (idNum >= 49 && idNum <= 55) ? 2 : 1;
 }
 
-// 🎯 已修改：传入当前页面选中或存下的真实单价进行金额计算，不采用默认死数据
-function getLiveRowAmounts(productObj, qty, price, giftQty, returnQty) {
-  let saleAmount = 0; let giftAmount = 0; let returnAmount = 0;
-  if (isSpecialSpecOreo(productObj)) {
-    // 售后和赠送同步当前选中的每件单价除以11袋
-    const singleBagPrice = price / 11;
-    saleAmount = qty * price; 
-    giftAmount = giftQty * singleBagPrice;
-    returnAmount = returnQty * singleBagPrice;
+// 🎯 已更新财务算账模型：良品与报损拆开核算，赠送回归默认价走成本
+function getLiveRowAmounts(productObj, qty, livePrice, giftQty, returnQty, returnHandle) {
+  let saleAmount = 0; 
+  let giftAmount = 0; 
+  let restoreAmount = 0; // 良品（回库没赚）
+  let scrapAmount = 0;   // 报损（核心亏损扣减项）
+
+  // 获取商品的默认基础价
+  const isOreo = isSpecialSpecOreo(productObj);
+  const defaultPrice = isOreo ? 17.5 : (productObj.default_price || 15);
+
+  if (isOreo) {
+    const liveSingleBagPrice = livePrice / 11;
+    const defaultSingleBagPrice = defaultPrice / 11;
+    
+    saleAmount = qty * livePrice;
+    giftAmount = giftQty * defaultSingleBagPrice; // 🎁 赠送强制走默认价
+    
+    if (returnHandle === 'SCRAP') {
+      scrapAmount = returnQty * liveSingleBagPrice; // 🔴 报损走当前卖进价
+    } else {
+      restoreAmount = returnQty * liveSingleBagPrice; // 🟢 良品单独归类
+    }
   } else {
-    saleAmount = qty * price; 
-    giftAmount = giftQty * price; 
-    returnAmount = returnQty * price;
+    saleAmount = qty * livePrice;
+    giftAmount = giftQty * defaultPrice; // 🎁 赠送强制走默认价
+    
+    if (returnHandle === 'SCRAP') {
+      scrapAmount = returnQty * livePrice;
+    } else {
+      restoreAmount = returnQty * livePrice;
+    }
   }
-  return { saleAmount, giftAmount, returnAmount };
+  return { saleAmount, giftAmount, restoreAmount, scrapAmount };
 }
 
 function parseReturnHandleText(val) {
@@ -499,16 +518,18 @@ async function openStoreHistory(atom, name) {
     const allItems = itemsData || [];
 
     historyOrders.forEach(o => {
-      let sSum = 0; let rSum = 0; let gSum = 0;
+      let sSum = 0; let gSum = 0; let resSum = 0; let scrSum = 0;
       const oItems = allItems.filter(it => it.order_id === o.id);
       oItems.forEach(it => {
         const pObj = products.find(x => x.id == it.product_id);
         const parsedReturn = parseReturnHandleText(it.return_handle);
-        // 拉取历史单据时使用当时保存的真实卖进价格 it.price 计算售后与赠送金额
-        const rowRes = getLiveRowAmounts(pObj, it.qty || 0, it.price || 0, it.gift_qty || 0, parsedReturn.qty || 0);
-        sSum += rowRes.saleAmount; gSum += rowRes.giftAmount; rSum += rowRes.returnAmount;
+        const rowRes = getLiveRowAmounts(pObj, it.qty || 0, it.price || 0, it.gift_qty || 0, parsedReturn.qty || 0, parsedReturn.handle);
+        sSum += rowRes.saleAmount; 
+        gSum += rowRes.giftAmount; 
+        resSum += rowRes.restoreAmount; 
+        scrSum += rowRes.scrapAmount;
       });
-      o.saleSum = sSum; o.returnSum = rSum; o.giftSum = gSum;
+      o.saleSum = sSum; o.giftSum = gSum; o.restoreSum = resSum; o.scrapSum = scrSum;
     });
   }
   renderHistory();
@@ -526,8 +547,9 @@ function renderHistory(){
             <span style="font-size:15px; font-weight:700;">📅 ${o.order_date}</span>
             <span style="color:var(--primary); font-size:14px;">详情 →</span>
           </div>
-          <div style="font-size: 13px; color: var(--text-muted);">
-            卖进: <strong>${(o.saleSum||0).toFixed(1)}</strong> 元 | 售后: <strong>${(o.returnSum||0).toFixed(1)}</strong> 元 | 赠送: <strong>${(o.giftSum||0).toFixed(1)}</strong> 元
+          <div style="font-size: 13px; color: var(--text-muted); line-height:1.4;">
+            卖进: <strong>${(o.saleSum||0).toFixed(1)}</strong> 元 | 赠送(基础): <strong>${(o.giftSum||0).toFixed(1)}</strong> 元<br>
+            🟢良品(返库): <strong>${(o.restoreSum||0).toFixed(1)}</strong> 元 | 🔴报损(亏损): <strong style="color:red;">${(o.scrapSum||0).toFixed(1)}</strong> 元
           </div>
         </div>
       `).join('')}
@@ -541,19 +563,24 @@ async function viewOrderDetail(orderId, orderDate) {
   const { data: items } = await client.from('order_items').select('*').eq('order_id', orderId);
   
   let rawItemsJSON = encodeURIComponent(JSON.stringify(items));
-  let detailSaleSum = 0; let detailReturnSum = 0; let detailGiftSum = 0;
+  let detailSaleSum = 0; let detailGiftSum = 0; let detailRestoreSum = 0; let detailScrapSum = 0;
 
   items.forEach(it => {
     const pObj = products.find(x => x.id == it.product_id);
     const parsedReturn = parseReturnHandleText(it.return_handle);
-    // 详情页同步历史卖进单价 it.price 来计算售后与赠送总额
-    const rowRes = getLiveRowAmounts(pObj, it.qty || 0, it.price || 0, it.gift_qty || 0, parsedReturn.qty || 0);
-    detailSaleSum += rowRes.saleAmount; detailReturnSum += rowRes.returnAmount; detailGiftSum += rowRes.giftAmount;
+    const rowRes = getLiveRowAmounts(pObj, it.qty || 0, it.price || 0, it.gift_qty || 0, parsedReturn.qty || 0, parsedReturn.handle);
+    detailSaleSum += rowRes.saleAmount; 
+    detailGiftSum += rowRes.giftAmount; 
+    detailRestoreSum += rowRes.restoreAmount; 
+    detailScrapSum += rowRes.scrapAmount;
   });
 
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">${currentStore.name}</div>
-    <div class="amount-summary-banner">卖进：<strong>${detailSaleSum.toFixed(1)}</strong> 元 | 售后：<strong>${detailReturnSum.toFixed(1)}</strong> 元 | 赠送：<strong>${detailGiftSum.toFixed(1)}</strong> 元</div>
+    <div class="amount-summary-banner" style="line-height:1.5;">
+      卖进：<strong>${detailSaleSum.toFixed(1)}</strong> 元 | 赠送(基础)：<strong>${detailGiftSum.toFixed(1)}</strong> 元<br>
+      🟢良品：<strong>${detailRestoreSum.toFixed(1)}</strong> 元 | 🔴报损：<strong style="color:red;">${detailScrapSum.toFixed(1)}</strong> 元
+    </div>
     <button class="smallbtn" style="background:#fdf6ec; color:#e6a23c; margin: 10px 0;" onclick="editExistingOrder('${orderId}', '${orderDate}', '${rawItemsJSON}')">✏️ 修改订单</button>
     ${items.map(it => {
       const p = products.find(x => x.id == it.product_id) || { product_name: '未知商品', spec: '常规' };
@@ -565,7 +592,7 @@ async function viewOrderDetail(orderId, orderDate) {
           <div class="item-main-row">
             <div class='prod-info'>
               <div class='prod-name'>${p.spec} ${p.product_name}</div>
-              ${parsedReturn.qty > 0 ? `<div style="font-size:12px; color:#e6a23c;">🔄 售后: ${parsedReturn.qty}包 (${parsedReturn.handle==='RESTORE'?'良品':'报损'})</div>` : ''}
+              ${parsedReturn.qty > 0 ? `<div style="font-size:12px; color:${parsedReturn.handle==='SCRAP'?'red':'#e6a23c'};">${parsedReturn.handle==='SCRAP'?'🔴 报损':'🟢 良品'}: ${parsedReturn.qty}包</div>` : ''}
               ${(it.gift_qty||0) > 0 ? `<div style="font-size:12px; color:#1890ff;">🎁 赠送: ${it.gift_qty}包</div>` : ''}
             </div>
             <div style="text-align:right; font-size:14px;">销售: <strong>${it.qty}</strong> ${isOreoSpecial?'中盒':'个'}<br><span class="sub">${Number(it.price).toFixed(decPlaces)}元</span></div>
@@ -623,16 +650,21 @@ function openOrder(atom, name){
 }
 
 function calculateLiveOrderAmounts() {
-  let s = 0; let r = 0; let g = 0;
+  let s = 0; let g = 0; let res = 0; let scr = 0;
   products.forEach(p => {
     const item = orderData.items[p.id];
     if(item) {
-      // 🎯 核心修改：将页面当前选中的 item.price 单价传入，使售后和赠送完美同步当前选定单价
-      const rowRes = getLiveRowAmounts(p, item.qty || 0, item.price || 0, item.gift_qty || 0, item.return_qty || 0);
-      s += rowRes.saleAmount; r += rowRes.returnAmount; g += rowRes.giftAmount;     
+      const rowRes = getLiveRowAmounts(p, item.qty || 0, item.price || 0, item.gift_qty || 0, item.return_qty || 0, item.return_handle);
+      s += rowRes.saleAmount; 
+      g += rowRes.giftAmount; 
+      res += rowRes.restoreAmount; 
+      scr += rowRes.scrapAmount;     
     }
   });
-  document.getElementById('liveAmountBanner').innerHTML = `卖进：<strong>${s.toFixed(1)}</strong> 元 | 售后：<strong>${r.toFixed(1)}</strong> 元 | 赠送：<strong>${g.toFixed(1)}</strong> 元`;
+  document.getElementById('liveAmountBanner').innerHTML = `
+    卖进：<strong>${s.toFixed(1)}</strong> 元 | 赠送(基础)：<strong>${g.toFixed(1)}</strong> 元<br>
+    🟢良品：<strong>${res.toFixed(1)}</strong> 元 | 🔴报损：<strong style="color:red;">${scr.toFixed(1)}</strong> 元
+  `;
 }
 
 function renderOrder(){
