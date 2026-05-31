@@ -17,7 +17,7 @@
 }
 
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin:0; background: var(--bg-main); color: var(--text-main); padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }
-.card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); }
+.card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); position: relative;}
 
 .back-btn {
   display: inline-flex; align-items: center; justify-content: center;
@@ -49,6 +49,23 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .emp-card:active {
   background: #f3e2f5;
   transform: scale(0.97);
+}
+
+/* 🟢 为店铺列表容器预留右侧字母栏的固定宽度(24px) */
+.store-container {
+  padding-right: 24px;
+  box-sizing: border-box;
+}
+
+/* 🟢 拼音首字母分组标题样式 */
+.letter-group-title {
+  background: #f4f2f5;
+  color: var(--primary);
+  font-weight: 700;
+  font-size: 14px;
+  padding: 4px 8px;
+  margin: 12px 0 6px 0;
+  border-radius: 4px;
 }
 
 .item { 
@@ -131,6 +148,39 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
   padding: 5px 8px; background: #fff; border: 1px solid var(--primary); color: var(--primary);
   border-radius: 6px; font-size: 13px; font-weight: bold; outline: none; cursor: pointer;
 }
+
+/* 🟢 右侧悬浮快捷拼音字母栏样式 */
+.alphabet-sidebar {
+  position: fixed;
+  right: 16px;
+  top: 140px;
+  bottom: 100px;
+  width: 24px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 90;
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(74,21,75,0.08);
+  border: 1px solid #eeeade;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.alphabet-letter {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--primary);
+  padding: 2px 0;
+  width: 100%;
+  text-align: center;
+  cursor: pointer;
+}
+.alphabet-letter:active {
+  color: var(--accent);
+  transform: scale(1.3);
+}
 </style>
 </head>
 
@@ -138,17 +188,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 
 <div class="card">
 <div id="searchBlock" class="search-wrapper">
-  <input id="search" placeholder="🔍 快速搜索员工 / 门店..." oninput="handleSearch()" />
+  <input id="search" placeholder="🔍 快速搜索..." oninput="handleSearch()" />
   <div id="clearSearch" class="search-clear-btn" onclick="clearSearchInput()">✕</div>
 </div>
 
 <div id="back" class="back-btn hide" onclick="goBack()">返回</div>
 <div id="list"></div>
+<div id="alphabetSidebar" class="alphabet-sidebar hide"></div>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
+<script src="https://cdn.jsdelivr.net/npm/pinyin-pro@3.18.3/dist/index.js"></script>
 
+<script>
 const SUPABASE_URL = "https://mnmzqmqxdzagpounvchn.supabase.co";
 const SUPABASE_KEY = "sb_publishable_-AQkn3K06H0cykzBsM_pGg_J1lYgIPF";
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -207,7 +259,11 @@ function getSearch(){ return document.getElementById('search').value || ''; }
 function renderEmployees(){
   STATE = 'EMP';
   document.getElementById('back').classList.add('hide');
+  document.getElementById('alphabetSidebar').classList.add('hide'); // 首页隐藏字母栏
   document.getElementById('searchBlock').classList.remove('hide'); 
+  
+  // 🟢 优化：首页专属搜索提示词
+  document.getElementById('search').placeholder = "🔍 输入姓名或工号搜索员工...";
 
   const k = getSearch();
   const list = employees.filter(e=> (e.employee_name||'').includes(k) || (e.employee_code||'').includes(k) );
@@ -237,6 +293,7 @@ async function openEmployee(code, name){
   const codes = (r.data || []).map(i => String(i.atom_code).trim());
 
   if (codes.length === 0) {
+    document.getElementById('alphabetSidebar').classList.add('hide');
     document.getElementById('list').innerHTML = `
       <button class="btn-stock-gate" onclick="openStockManagement()">📦 库存管理</button>
       <div style='font-size:14px; font-weight:700; color:var(--primary); margin: 6px 0 14px 4px;'>门店总数：0 家</div>
@@ -245,8 +302,30 @@ async function openEmployee(code, name){
   }
 
   const { data: matchedStores } = await client.from('stores_dim').select('*').in('atom_code', codes);
-  stores = matchedStores || [];
+  
+  // 🟢 核心排序：门店列表强制按中文名称拼音（A-Z）升序排列
+  stores = (matchedStores || []).sort((a, b) => {
+    return (a.store_name || '').localeCompare((b.store_name || ''), 'zh-CN');
+  });
+
   renderStores();
+}
+
+// 🟢 辅助工具：提取门店名称首字汉语拼音大写字母
+function getStoreFirstLetter(storeName) {
+  if (!storeName) return '#';
+  try {
+    // 使用 pinyinPro 获取首字的首字母
+    const firstChar = storeName.trim().charAt(0);
+    const pinyin = pinyinPro.pinyin(firstChar, { pattern: 'first', toneType: 'none' });
+    if (pinyin && pinyin.length > 0) {
+      const letter = pinyin.charAt(0).toUpperCase();
+      if (/[A-Z]/.test(letter)) return letter;
+    }
+  } catch (e) {
+    console.error(e);
+  }
+  return '#';
 }
 
 function renderStores(){
@@ -254,27 +333,77 @@ function renderStores(){
   document.getElementById('back').classList.remove('hide');
   document.getElementById('searchBlock').classList.remove('hide'); 
   
+  // 🟢 优化：门店页专属搜索提示词
+  document.getElementById('search').placeholder = "🔍 输入门店名称或编码搜索店铺...";
+
   const k = getSearch();
   const f = stores.filter(s=> (s.store_name||'').includes(k) || (s.atom_code||'').includes(k) );
 
-  document.getElementById('list').innerHTML = `
+  // 1. 进行首字母的分组归类加工
+  const groupedStores = {};
+  const activeLetters = new Set();
+
+  f.forEach(s => {
+    const letter = getStoreFirstLetter(s.store_name);
+    if (!groupedStores[letter]) groupedStores[letter] = [];
+    groupedStores[letter].push(s);
+    activeLetters.add(letter);
+  });
+
+  // 2. 动态生成并挂载右侧的字母快速滑动栏
+  const sortedLetters = Array.from(activeLetters).sort();
+  const sidebarEl = document.getElementById('alphabetSidebar');
+  if (sortedLetters.length > 1 && !k) { // 有多个分组且没有在使用模糊搜索时才出现
+    sidebarEl.classList.remove('hide');
+    sidebarEl.innerHTML = sortedLetters.map(l => `
+      <div class="alphabet-letter" onclick="scrollToLetterGroup('${l}')">${l}</div>
+    `).join('');
+  } else {
+    sidebarEl.classList.add('hide');
+  }
+
+  // 3. 构建包含拼音分组标题的列表 HTML
+  let listHtml = `
     <button class="btn-stock-gate" onclick="openStockManagement()">📦 库存管理</button>
     <div style='font-size:14px; font-weight:700; color:var(--primary); margin: 0 0 14px 4px;'>门店总数：${stores.length} 家</div>
-
-    ${f.map(s=>`
-      <div class='item' onclick="openStoreHistory('${s.atom_code}','${s.store_name}')">
-        <div>
-          <strong style="font-size:16px;color:var(--primary);">${s.store_name}</strong>
-          <div class='sub'>${s.atom_code}</div>
-        </div>
-      </div>
-    `).join('')}
+    <div class="store-container">
   `;
+
+  if (sortedLetters.length === 0) {
+    listHtml += `<div class="sub" style="text-align:center;padding:20px;">⚠️ 未找到匹配的店铺</div>`;
+  } else {
+    sortedLetters.forEach(letter => {
+      listHtml += `<div id="group_letter_${letter}" class="letter-group-title">${letter}</div>`;
+      groupedStores[letter].forEach(s => {
+        listHtml += `
+          <div class='item' onclick="openStoreHistory('${s.atom_code}','${s.store_name}')">
+            <div>
+              <strong style="font-size:16px;color:var(--primary);">${s.store_name}</strong>
+              <div class='sub'>${s.atom_code}</div>
+            </div>
+          </div>
+        `;
+      });
+    });
+  }
+
+  listHtml += `</div>`;
+  document.getElementById('list').innerHTML = listHtml;
+}
+
+// 🟢 侧边栏字母跳转函数：平滑滚动到指定拼音分组成区
+function scrollToLetterGroup(letter) {
+  const target = document.getElementById(`group_letter_${letter}`);
+  if (target) {
+    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    // 针对顶部有固定元素的微调偏置（此处卡片有间距，start恰好合适）
+  }
 }
 
 async function openStockManagement(){
   STATE = 'STOCK';
   document.getElementById('back').classList.remove('hide');
+  document.getElementById('alphabetSidebar').classList.add('hide'); // 离开门店页隐藏字母栏
   document.getElementById('searchBlock').classList.add('hide'); 
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📦 正在同步仓库实时库存...</div>';
 
@@ -453,6 +582,7 @@ async function submitStock(){
 async function openStoreHistory(atom, name) {
   STATE = 'HISTORY'; currentStore = { atom, name };
   document.getElementById('back').classList.remove('hide'); 
+  document.getElementById('alphabetSidebar').classList.add('hide'); // 离开门店页隐藏字母栏
   document.getElementById('searchBlock').classList.add('hide'); 
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📋 正在拉取历史记录...</div>';
   const { data } = await client.from('orders').select('*').eq('atom_code', atom).order('order_date', { ascending: false });
@@ -490,7 +620,7 @@ async function viewOrderDetail(orderId, orderDate) {
       const p = products.find(x => x.id == it.product_id) || { product_name: '未知商品', spec: '常规款', brand: '其他' };
       return `<div class='item'><div class='prod-info' style="width:55%;"><div class='prod-name'>${p.spec} ${p.product_name}</div><div class='sub'>${p.brand}</div></div><div style="font-size:14px; color:#4b5563; margin-left:auto; text-align:right;"><div>数量: <strong style="color:var(--text-main);font-size:15px;">${it.qty}</strong></div><div class="sub">价格: ${it.price}元</div></div></div>`;
     }).join('')}
-    `;
+  `;
 }
 
 function openOrder(atom,name){
@@ -590,11 +720,18 @@ async function submitOrder(){
 function goBack(){
   autoResetSearchState();
 
-  if(STATE === 'STOCK') renderStores(); 
-  else if(STATE === 'DETAIL') renderHistory();
-  else if(STATE === 'ORDER') renderHistory();
-  else if(STATE === 'HISTORY') renderStores(); 
-  else if(STATE === 'STORE') renderEmployees();
+  if(STATE === 'STOCK') {
+    renderStores(); 
+  } else if(STATE === 'DETAIL') {
+    renderHistory();
+  } else if(STATE === 'ORDER') {
+    renderHistory();
+  } else if(STATE === 'HISTORY') {
+    renderStores(); 
+  } else if(STATE === 'STORE') {
+    document.getElementById('alphabetSidebar').classList.add('hide'); // 回退到首页彻底清空字母栏
+    renderEmployees();
+  }
 }
 
 init();
