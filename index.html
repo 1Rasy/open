@@ -35,18 +35,21 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center;}
 .smallbtn { background:#f4f2f5; color:var(--text-main); border: 1px solid #e2dde3; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500;}
 
-input { width:100%; padding:12px; margin:4px 0 12px 0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa;}
-input:focus { outline: none; border-color: var(--primary); background: #fff;}
+/* 🟢 优化：搜索框外层容器，用于放置清除按钮 */
+.search-wrapper { position: relative; margin: 4px 0 12px 0; width: 100%; box-sizing: border-box; }
+.search-wrapper input { width:100%; padding:12px 40px 12px 12px; margin:0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa;}
+.search-wrapper input:focus { outline: none; border-color: var(--primary); background: #fff;}
+/* 🟢 新增：一键清除X按钮样式 */
+.search-clear-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #e2dde3; color: #756676; border-radius: 50%; text-align: center; line-height: 20px; font-size: 12px; cursor: pointer; font-weight: bold; display: none; z-index: 5; }
+.search-clear-btn:active { background: #d0c9d2; }
 
 .btn-counter { background:#fbf4fc; color: var(--primary); font-weight: 700; padding: 4px 12px; border-radius: 6px; font-size: 16px; border:none;}
 .btn-counter:active { background: #f3e2f5; }
 
-/* 筛选标签统一样式 */
 .brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px 0; }
 .brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 7px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: 600; border: 1px solid transparent; }
 .brand-badge.active { background: #fbf4fc; color: var(--primary); border: 1px solid #eecbf5; }
 
-/* 🟢 新增：规格小标签样式 */
 .spec-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px 0; padding: 6px 0; border-bottom: 1px dashed #e2dde3; }
 .spec-badge { background: #ffffff; color: #665c67; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid #e2dde3; font-weight: 500;}
 .spec-badge.active { background: var(--primary); color: #ffffff; border-color: var(--primary); }
@@ -81,7 +84,11 @@ input:focus { outline: none; border-color: var(--primary); background: #fff;}
 <div class="header">🍇 MDLZ 亿滋开单与库存系统</div>
 
 <div class="card">
-<input id="search" placeholder="🔍 快速搜索员工 / 门店..." oninput="handleSearch()" />
+<div id="searchBlock" class="search-wrapper">
+  <input id="search" placeholder="🔍 快速搜索员工 / 门店..." oninput="handleSearch()" />
+  <div id="clearSearch" class="search-clear-btn" onclick="clearSearchInput()">✕</div>
+</div>
+
 <div id="back" class="back-btn hide" onclick="goBack()">返回</div>
 <div id="list"></div>
 </div>
@@ -102,9 +109,8 @@ let currentEmployee = null;
 let currentStore = null; 
 let orderData = null;
 
-// 🔴 核心全局：二级筛选状态器
 let currentSelectedBrand = null; 
-let currentSelectedSpec = "ALL"; // 默认显示当前品牌下的全部规格
+let currentSelectedSpec = "ALL"; 
 
 let historyOrders = []; 
 let stockData = {}; 
@@ -114,12 +120,28 @@ async function init(){
   const p = await client.from('products').select('*');
 
   employees = e.data || [];
-  // 基础数据清洗：确保 spec 字段绝不为空
   products = (p.data || []).map(x => ({ ...x, spec: (x.spec || '常规款').trim() }));
   renderEmployees();
 }
 
+// 🟢 智能搜索控制与X按钮显隐控制
 function handleSearch(){
+  const val = document.getElementById('search').value;
+  const clearBtn = document.getElementById('clearSearch');
+  if(val && val.length > 0) {
+    clearBtn.style.display = 'block';
+  } else {
+    clearBtn.style.display = 'none';
+  }
+
+  if(STATE === 'EMP') renderEmployees();
+  else if(STATE === 'STORE') renderStores();
+}
+
+// 🟢 一键清除按钮动作
+function clearSearchInput() {
+  document.getElementById('search').value = '';
+  document.getElementById('clearSearch').style.display = 'none';
   if(STATE === 'EMP') renderEmployees();
   else if(STATE === 'STORE') renderStores();
 }
@@ -129,7 +151,7 @@ function getSearch(){ return document.getElementById('search').value || ''; }
 function renderEmployees(){
   STATE = 'EMP';
   document.getElementById('back').classList.add('hide');
-  document.getElementById('search').classList.remove('hide');
+  document.getElementById('searchBlock').classList.remove('hide'); // 确保搜索外壳显示
 
   const k = getSearch();
   const list = employees.filter(e=> (e.employee_name||'').includes(k) || (e.employee_code||'').includes(k) );
@@ -149,7 +171,7 @@ async function openEmployee(code, name){
   currentEmployee = {code, name};
 
   document.getElementById('back').classList.remove('hide');
-  document.getElementById('search').classList.remove('hide');
+  document.getElementById('searchBlock').classList.remove('hide'); // 进入门店列表，搜索框必须显现
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📊 正在载入负责门店档案...</div>';
 
   const r = await client.from('employee_stores').select('atom_code').eq('employee_code', code);
@@ -170,6 +192,8 @@ async function openEmployee(code, name){
 
 function renderStores(){
   STATE = 'STORE';
+  document.getElementById('searchBlock').classList.remove('hide'); // 🟢 修复Bug：确保渲染门店列表时，搜索框强制不被遮挡隐藏
+  
   const k = getSearch();
   const f = stores.filter(s=> (s.store_name||'').includes(k) || (s.atom_code||'').includes(k) );
 
@@ -182,7 +206,7 @@ function renderStores(){
       <div class='item' onclick="openStoreHistory('${s.atom_code}','${s.store_name}')">
         <div>
           <strong style="font-size:16px;color:var(--primary);">${s.store_name}</strong>
-          <div class='sub'>Atom码: ${s.atom_code}</div>
+          <div class='sub'>${s.atom_code}</div>
         </div>
       </div>
     `).join('')}
@@ -193,7 +217,7 @@ function renderStores(){
 async function openStockManagement(){
   STATE = 'STOCK';
   document.getElementById('back').classList.remove('hide');
-  document.getElementById('search').classList.add('hide');
+  document.getElementById('searchBlock').classList.add('hide'); // 库存管理界面不使用全局搜索
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📦 正在同步仓库实时库存...</div>';
 
   const { data: currentStocks } = await client.from('emp_stocks').select('*').eq('employee_code', currentEmployee.code);
@@ -206,20 +230,19 @@ async function openStockManagement(){
     additions: {} 
   };
 
-  currentSelectedBrand = null; 
+  const brands = [...new Set(products.map(p => p.brand))];
+  currentSelectedBrand = brands.length > 0 ? brands[0] : null;
   currentSelectedSpec = "ALL";
+
   renderStockPage();
 }
 
-// 🟢 核心重构：渲染二级筛选控制条（抽离复用）
 function generateFilterHeaderHtml() {
   const brands = [...new Set(products.map(p => p.brand))];
   if (!currentSelectedBrand && brands.length > 0) currentSelectedBrand = brands[0];
 
-  // 核心：精准动态提取当前大品牌下的所有规格
   const availableSpecs = [...new Set(products.filter(p => p.brand === currentSelectedBrand).map(p => p.spec))];
   
-  // 容错处理：如果切换品牌后原选规格不存在，自动重置为“全部”
   if (currentSelectedSpec !== "ALL" && !availableSpecs.includes(currentSelectedSpec)) {
     currentSelectedSpec = "ALL";
   }
@@ -232,14 +255,13 @@ function generateFilterHeaderHtml() {
       <div class="spec-badge ${currentSelectedSpec === 'ALL' ? 'active' : ''}" onclick="selectSpec('ALL')">全部规格</div>
       ${availableSpecs.map(sp => `<div class="spec-badge ${currentSelectedSpec === sp ? 'active' : ''}" onclick="selectSpec('${sp}')">${sp}</div>`).join('')}
     </div>
-    <div class='brand'>📂 筛选结果：${currentSelectedBrand} ➔ ${currentSelectedSpec === 'ALL' ? '全部规格' : currentSelectedSpec}</div>
+    <div class='brand'>📂 筛选结果：${currentSelectedBrand || '未选择'} ➔ ${currentSelectedSpec === 'ALL' ? '全部规格' : currentSelectedSpec}</div>
   `;
 }
 
-// 二级选择联动动作
 function selectBrand(brandName) { 
   currentSelectedBrand = brandName; 
-  currentSelectedSpec = "ALL"; // 换大品牌时，小规格必须重置
+  currentSelectedSpec = "ALL"; 
   if(STATE === 'ORDER') renderOrder(); else if(STATE === 'STOCK') renderStockPage(); 
 }
 function selectSpec(specName) { 
@@ -250,7 +272,6 @@ function selectSpec(specName) {
 function renderStockPage(){
   STATE = 'STOCK';
   
-  // 联动执行双重数据清洗过滤
   const displayProducts = products.filter(p => {
     const matchBrand = p.brand === currentSelectedBrand;
     const matchSpec = currentSelectedSpec === "ALL" ? true : p.spec === currentSelectedSpec;
@@ -359,7 +380,8 @@ async function submitStock(){
 
 async function openStoreHistory(atom, name) {
   STATE = 'HISTORY'; currentStore = { atom, name };
-  document.getElementById('back').classList.remove('hide'); document.getElementById('search').classList.add('hide'); 
+  document.getElementById('back').classList.remove('hide'); 
+  document.getElementById('searchBlock').classList.add('hide'); // 进历史清单，隐藏搜索
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📋 正在拉取历史记录...</div>';
   const { data } = await client.from('orders').select('*').eq('atom_code', atom).order('order_date', { ascending: false });
   historyOrders = data || []; renderHistory();
@@ -382,7 +404,9 @@ function renderHistory(){
 }
 
 async function viewOrderDetail(orderId, orderDate) {
-  STATE = 'DETAIL'; document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">🔍 正在努力加载商品清单...</div>';
+  STATE = 'DETAIL'; 
+  document.getElementById('searchBlock').classList.add('hide');
+  document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">🔍 正在努力加载商品清单...</div>';
   const { data: items } = await client.from('order_items').select('*').eq('order_id', orderId);
   if(!items) { alert("明细加载失败"); renderHistory(); return; }
   document.getElementById('list').innerHTML = `
@@ -399,15 +423,18 @@ async function viewOrderDetail(orderId, orderDate) {
 function openOrder(atom,name){
   STATE = 'ORDER'; const d = new Date(); const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   orderData = { atom, name, date: today, items: {} }; 
-  currentSelectedBrand = null; 
+  
+  document.getElementById('searchBlock').classList.add('hide');
+  const brands = [...new Set(products.map(p => p.brand))];
+  currentSelectedBrand = brands.length > 0 ? brands[0] : null;
   currentSelectedSpec = "ALL";
+
   renderOrder();
 }
 
 function renderOrder(){
   STATE = 'ORDER';
   
-  // 联动筛选出当前开单商品
   const displayProducts = products.filter(p => {
     const matchBrand = p.brand === currentSelectedBrand;
     const matchSpec = currentSelectedSpec === "ALL" ? true : p.spec === currentSelectedSpec;
@@ -418,7 +445,6 @@ function renderOrder(){
     <div class='sub' style='font-weight:600;color:#000;'>🏪 门店：${orderData.name}</div>
     <div class='row' style='margin-bottom:10px;'><span style="font-size:15px;font-weight:700;">📅 <span id='dateText'>${orderData.date}</span></span><button class='smallbtn' onclick='editDate()'>修改日期</button></div>
     
-    <!-- 二级筛选块 -->
     ${generateFilterHeaderHtml()}
 
     ${displayProducts.map(p=>`
@@ -491,7 +517,7 @@ function goBack(){
   if(STATE === 'STOCK') openEmployee(currentEmployee.code, currentEmployee.name);
   else if(STATE === 'DETAIL') renderHistory();
   else if(STATE === 'ORDER') renderHistory();
-  else if(STATE === 'HISTORY') renderStores();
+  else if(STATE === 'HISTORY') renderStores(); // 🟢 触发此步返回时，renderStores() 内部会自动激活搜索框的显示
   else if(STATE === 'STORE') renderEmployees();
 }
 
