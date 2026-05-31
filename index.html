@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8" />
-<title>开单+库存(iOS标准规范版)</title>
+<title>开单+库存</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>
 :root {
@@ -163,6 +163,8 @@ function getPriceDecimalPlaces(prodId) {
   return (idNum >= 49 && idNum <= 55) ? 2 : 1;
 }
 
+// 核心金额计算方法：
+// 传入的 qty (若为三片装，则代表输入的“盒数”，普通商品代表“个数”)
 function getLiveRowAmounts(productObj, qty, livePrice, giftQty, returnQty, returnHandle) {
   let saleAmount = 0; 
   let giftAmount = 0; 
@@ -171,12 +173,17 @@ function getLiveRowAmounts(productObj, qty, livePrice, giftQty, returnQty, retur
 
   const isOreo = isSpecialSpecOreo(productObj);
   const defaultPrice = isOreo ? 17.5 : (productObj.default_price || 15);
+  const specBox = isOreo ? (productObj.pcs_per_box || 6) : 0;
 
   if (isOreo) {
-    const liveSingleBagPrice = livePrice / 11;
-    const defaultSingleBagPrice = defaultPrice / 11;
-    
+    // 三片装：前端销售录入单位改为了“盒”
+    // 所以卖进金额 = 销售盒数 * 盒单价(livePrice)
     saleAmount = qty * livePrice;
+    
+    // 赠送和收回在底层依然输入的是“个”
+    const liveSingleBagPrice = livePrice / (specBox || 6);
+    const defaultSingleBagPrice = defaultPrice / (specBox || 6);
+    
     giftAmount = giftQty * defaultSingleBagPrice; 
     
     if (returnHandle === 'SCRAP') {
@@ -222,6 +229,7 @@ function handleSearch(){
   else if(STATE === 'STORE') renderStores();
 }
 
+// 页面重置
 function autoResetSearchState() {
   document.getElementById('search').value = '';
   document.getElementById('clearSearch').style.display = 'none';
@@ -441,8 +449,6 @@ function renderStockPage(){
     ${generateFilterHeaderHtml()}
     ${displayProducts.map(p => {
       const isOreoSpecial = isSpecialSpecOreo(p);
-      
-      // 设定包装规格：如果是三片装，假设1件=24中盒，1盒=6个（或者1件=144个，如果没有配置按 24和6 兜底）
       const specCase = p.pcs_per_case || 24; 
       const specBox = isOreoSpecial ? (p.pcs_per_box || 6) : (p.pcs_per_box || 0);    
       
@@ -613,22 +619,14 @@ async function viewOrderDetail(orderId, orderDate) {
       const rowNetRevenue = rowRes.saleAmount - rowRes.scrapAmount - rowRes.giftAmount;
 
       const isOreoSpecial = isSpecialSpecOreo(p);
-      const specCase = p.pcs_per_case || 24;
-      const specBox = isOreoSpecial ? (p.pcs_per_box || 6) : 0;
-
-      // 根据配置生成卖进的数量展示
-      let saleQtyDisplayText = `${it.qty} 个`;
-      if (isOreoSpecial && specBox > 0) {
-         saleQtyDisplayText = formatQtyToUnits(it.qty, specCase, specBox, false); // 不显示“件”，显示“盒 个”
-      }
+      // 三片装在明细页展示的是盒数
+      let saleQtyDisplayText = isOreoSpecial ? `${it.qty} 盒` : `${it.qty} 个`;
 
       return `
         <div class='item'>
           <div style="font-weight:600; font-size:15px; color:var(--primary); margin-bottom: 6px;">${p.spec} ${p.product_name}</div>
           
-          <!-- 双行排版网格 -->
           <div class="detail-grid-container">
-            <!-- 第一行：实际收入 跟 卖进 -->
             <div class="detail-grid-item">
               <span>实际收入: <strong style="color:var(--primary); font-size:14px;">${rowNetRevenue.toFixed(1)}元</strong></span>
             </div>
@@ -636,7 +634,6 @@ async function viewOrderDetail(orderId, orderDate) {
               <span>卖进: <strong>${saleQtyDisplayText}</strong> × ${Number(it.price).toFixed(getPriceDecimalPlaces(it.product_id))}元</span>
             </div>
             
-            <!-- 第二行：赠送 跟 过期 -->
             <div class="detail-grid-item">
               <span>赠送: <span style="color:#1890ff;">${it.gift_qty || 0}</span> 个</span>
             </div>
@@ -669,9 +666,13 @@ function templateEditOrNew(orderId=null, orderDate=null, rawItemsEncoded=null, a
         return_qty: parsedReturn.qty, return_handle: parsedReturn.handle,
         showPanel: parsedReturn.qty > 0 || (it.gift_qty || 0) > 0
       };
+      
       const pObj = products.find(x => x.id == it.product_id);
       const isOreoSpecial = isSpecialSpecOreo(pObj);
-      const saleBags = isOreoSpecial ? (it.qty * 11) : it.qty;
+      const specBox = isOreoSpecial ? (pObj.pcs_per_box || 6) : 1;
+      
+      // 底层计算库存影响包数：如果三片装，销售的是盒数，需乘上每盒的个数
+      const saleBags = isOreoSpecial ? (it.qty * specBox) : it.qty;
       const giftBags = it.gift_qty || 0;
       const returnBags = parsedReturn.qty || 0;
       let oldNet = saleBags + giftBags;
@@ -734,9 +735,11 @@ function renderOrder(){
       const itData = orderData.items[p.id] || { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
       const stepPlaces = getPriceDecimalPlaces(p.id);
 
+      // 三片装的销售单位是盒，普通商品是个
+      const saleUnitText = isOreoSpecial ? "盒" : "个";
+
       return `
         <div class='item'>
-          <!-- 第一行：商品选择与录入 -->
           <div class="item-main-row">
             <div class='prod-info'>
               <div class='prod-name'>${p.spec} ${p.product_name}</div>
@@ -749,7 +752,7 @@ function renderOrder(){
                 <select class="ios-picker" onchange="pickerChangeQty('${p.id}', this.value)">
                   ${makePureQtyOptionsHtml(100, itData.qty)}
                 </select>
-                <span class="unit-txt">个</span>
+                <span class="unit-txt">${saleUnitText}</span>
               </div>
               <div class="picker-wrapper">
                 <span class="label-txt">单价:</span>
@@ -761,7 +764,6 @@ function renderOrder(){
             </div>
           </div>
           
-          <!-- 第二行（原售后面板）：收回与赠送数量及单选切换 -->
           <div id="panel_${p.id}" class="aftersale-panel ${itData.showPanel ? '' : 'hide'}">
             <div class="aftersale-row-picks">
               <div class="picker-wrapper" style="flex:1;">
@@ -838,7 +840,10 @@ async function submitOrder(){
     
     const pObj = products.find(x => x.id == id);
     const isOreoSpecial = isSpecialSpecOreo(pObj);
-    const saleBags = isOreoSpecial ? (item.qty * 11) : item.qty;
+    const specBox = isOreoSpecial ? (pObj.pcs_per_box || 6) : 1;
+
+    // 底层计算总包数变化
+    const saleBags = isOreoSpecial ? (item.qty * specBox) : item.qty;
     const giftBags = item.gift_qty || 0;
     const returnBags = item.return_qty || 0;
 
