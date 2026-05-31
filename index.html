@@ -136,14 +136,12 @@ function getPriceDecimalPlaces(prodId) {
   return (idNum >= 49 && idNum <= 55) ? 2 : 1;
 }
 
-// 🎯 已更新财务算账模型：良品与报损拆开核算，赠送回归默认价走成本
 function getLiveRowAmounts(productObj, qty, livePrice, giftQty, returnQty, returnHandle) {
   let saleAmount = 0; 
   let giftAmount = 0; 
-  let restoreAmount = 0; // 良品（回库没赚）
-  let scrapAmount = 0;   // 报损（核心亏损扣减项）
+  let restoreAmount = 0; 
+  let scrapAmount = 0;   
 
-  // 获取商品的默认基础价
   const isOreo = isSpecialSpecOreo(productObj);
   const defaultPrice = isOreo ? 17.5 : (productObj.default_price || 15);
 
@@ -152,16 +150,16 @@ function getLiveRowAmounts(productObj, qty, livePrice, giftQty, returnQty, retur
     const defaultSingleBagPrice = defaultPrice / 11;
     
     saleAmount = qty * livePrice;
-    giftAmount = giftQty * defaultSingleBagPrice; // 🎁 赠送强制走默认价
+    giftAmount = giftQty * defaultSingleBagPrice; 
     
     if (returnHandle === 'SCRAP') {
-      scrapAmount = returnQty * liveSingleBagPrice; // 🔴 报损走当前卖进价
+      scrapAmount = returnQty * liveSingleBagPrice; 
     } else {
-      restoreAmount = returnQty * liveSingleBagPrice; // 🟢 良品单独归类
+      restoreAmount = returnQty * liveSingleBagPrice; 
     }
   } else {
     saleAmount = qty * livePrice;
-    giftAmount = giftQty * defaultPrice; // 🎁 赠送强制走默认价
+    giftAmount = giftQty * defaultPrice; 
     
     if (returnHandle === 'SCRAP') {
       scrapAmount = returnQty * livePrice;
@@ -530,6 +528,8 @@ async function openStoreHistory(atom, name) {
         scrSum += rowRes.scrapAmount;
       });
       o.saleSum = sSum; o.giftSum = gSum; o.restoreSum = resSum; o.scrapSum = scrSum;
+      // 📐 实收 = 卖进 - 报损 - 赠送
+      o.netRevenue = sSum - scrSum - gSum;
     });
   }
   renderHistory();
@@ -547,9 +547,10 @@ function renderHistory(){
             <span style="font-size:15px; font-weight:700;">📅 ${o.order_date}</span>
             <span style="color:var(--primary); font-size:14px;">详情 →</span>
           </div>
-          <div style="font-size: 13px; color: var(--text-muted); line-height:1.4;">
-            卖进: <strong>${(o.saleSum||0).toFixed(1)}</strong> 元 | 赠送(基础): <strong>${(o.giftSum||0).toFixed(1)}</strong> 元<br>
-            🟢良品(返库): <strong>${(o.restoreSum||0).toFixed(1)}</strong> 元 | 🔴报损(亏损): <strong style="color:red;">${(o.scrapSum||0).toFixed(1)}</strong> 元
+          <div style="font-size: 13px; color: var(--text-muted); line-height:1.45;">
+            <span style="color:#2b1d2c; font-weight:700; font-size:14px;">💵 实收：${(o.netRevenue||0).toFixed(1)} 元</span><br>
+            卖进: ${(o.saleSum||0).toFixed(1)} 元 | 赠送: ${(o.giftSum||0).toFixed(1)} 元<br>
+            🟢良品: ${(o.restoreSum||0).toFixed(1)} 元 | 🔴报损: ${(o.scrapSum||0).toFixed(1)} 元
           </div>
         </div>
       `).join('')}
@@ -574,12 +575,15 @@ async function viewOrderDetail(orderId, orderDate) {
     detailRestoreSum += rowRes.restoreAmount; 
     detailScrapSum += rowRes.scrapAmount;
   });
+  
+  let detailNetRevenue = detailSaleSum - detailScrapSum - detailGiftSum;
 
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">${currentStore.name}</div>
-    <div class="amount-summary-banner" style="line-height:1.5;">
-      卖进：<strong>${detailSaleSum.toFixed(1)}</strong> 元 | 赠送(基础)：<strong>${detailGiftSum.toFixed(1)}</strong> 元<br>
-      🟢良品：<strong>${detailRestoreSum.toFixed(1)}</strong> 元 | 🔴报损：<strong style="color:red;">${detailScrapSum.toFixed(1)}</strong> 元
+    <div class="amount-summary-banner" style="line-height:1.55;">
+      <span style="font-size:16px; color:var(--primary);">💵 <strong>实收：${detailNetRevenue.toFixed(1)} 元</strong></span><br>
+      卖进：${detailSaleSum.toFixed(1)} 元 | 赠送：${detailGiftSum.toFixed(1)} 元<br>
+      🟢良品：${detailRestoreSum.toFixed(1)} 元 | 🔴报损：${detailScrapSum.toFixed(1)} 元
     </div>
     <button class="smallbtn" style="background:#fdf6ec; color:#e6a23c; margin: 10px 0;" onclick="editExistingOrder('${orderId}', '${orderDate}', '${rawItemsJSON}')">✏️ 修改订单</button>
     ${items.map(it => {
@@ -661,9 +665,13 @@ function calculateLiveOrderAmounts() {
       scr += rowRes.scrapAmount;     
     }
   });
+
+  let liveNetRevenue = s - scr - g;
+
   document.getElementById('liveAmountBanner').innerHTML = `
-    卖进：<strong>${s.toFixed(1)}</strong> 元 | 赠送(基础)：<strong>${g.toFixed(1)}</strong> 元<br>
-    🟢良品：<strong>${res.toFixed(1)}</strong> 元 | 🔴报损：<strong style="color:red;">${scr.toFixed(1)}</strong> 元
+    <span style="font-size:15px; color:var(--primary);">💵 <strong>实收：${liveNetRevenue.toFixed(1)} 元</strong></span><br>
+    卖进：${s.toFixed(1)} 元 | 赠送：${g.toFixed(1)} 元<br>
+    🟢良品：${res.toFixed(1)} 元 | 🔴报损：${scr.toFixed(1)} 元
   `;
 }
 
