@@ -252,7 +252,7 @@ async function openEmployee(code, name){
     document.getElementById('list').innerHTML = `
       <button class="btn-stock-gate" onclick="openStockManagement()">📦 库存管理</button>
       <div style='font-size:14px; font-weight:700; color:var(--primary); margin: 6px 0 14px 4px;'>门店总数：0 家</div>
-      <div class="sub" style="text-align:center;padding:20px;color:red;">⚠️ 该员工未绑定任何门店</div>`;
+      <div class="sub" style="text-align:center;padding:20px;color:red;">⚠️ 该员工未绑定 any 门店</div>`;
     return;
   }
 
@@ -528,7 +528,6 @@ async function openStoreHistory(atom, name) {
         scrSum += rowRes.scrapAmount;
       });
       o.saleSum = sSum; o.giftSum = gSum; o.restoreSum = resSum; o.scrapSum = scrSum;
-      // 📐 实收 = 卖进 - 报损 - 赠送
       o.netRevenue = sSum - scrSum - gSum;
     });
   }
@@ -625,7 +624,11 @@ function editExistingOrder(orderId, orderDate, rawItemsEncoded) {
     const giftBags = it.gift_qty || 0;
     const returnBags = parsedReturn.qty || 0;
 
-    let oldNet = saleBags + giftBags - (parsedReturn.handle === 'RESTORE' ? returnBags : 0);
+    // 📐 历史老单据的纯库存消耗记录追溯
+    let oldNet = saleBags + giftBags;
+    if (parsedReturn.handle === 'RESTORE') {
+      oldNet -= returnBags; // 老单据如果是良品，则曾把库存加回过
+    }
     orderData.oldItemsMap[it.product_id] = oldNet; 
   });
 
@@ -799,7 +802,12 @@ async function submitOrder(){
     const giftBags = item.gift_qty || 0;
     const returnBags = item.return_qty || 0;
 
-    let currentNetImpact = saleBags + giftBags - (item.return_handle === 'RESTORE' ? returnBags : 0);
+    // 🔥【关键修复】：只有良品回库才减除库存影响，过期报损不增库存！
+    let currentNetImpact = saleBags + giftBags; 
+    if (item.return_handle === 'RESTORE') {
+      currentNetImpact -= returnBags; 
+    }
+
     const delta = currentNetImpact - oldNetImpact; 
     const finalNewStock = (liveStockMap[id] || 0) - delta;
 
