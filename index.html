@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8" />
-<title>开单+库存(iOS标准规范版)</title>
+<title>开单+库存</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>
 :root {
@@ -33,16 +33,18 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .prod-info { flex: 1; min-width: 0; }
 .prod-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.control-group { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-.picker-wrapper { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-muted); }
+.control-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; max-width: 75%; }
+.picker-wrapper { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; color: var(--text-muted); }
 .picker-wrapper span.label-txt { font-weight: 500; color: #665c67; }
 .picker-wrapper span.unit-txt { font-weight: 600; color: var(--text-main); font-size: 13px; }
+.live-row-net-txt { font-size: 13px; font-weight: bold; color: var(--primary); background: #f6eef7; padding: 5px 8px; border-radius: 6px; min-width: 65px; text-align: center; border: 1px dashed #d6b8da; }
+
 .ios-picker {
   background: #f4f2f5;
   color: var(--text-main);
   border: 1px solid #dcd6dd;
   border-radius: 6px;
-  padding: 6px 10px;
+  padding: 6px 6px;
   font-size: 14px;
   font-weight: 700;
   outline: none;
@@ -50,13 +52,14 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
   -webkit-appearance: none; 
   appearance: none;
   text-align: center;
-  min-width: 44px;
+  min-width: 40px;
 }
 .ios-picker:focus { border-color: var(--primary); background: #fff; }
 
 /* 售后与赠送面板 */
 .aftersale-panel { background: #fdfaf6; border: 1px dashed #f5dab1; border-radius: 8px; padding: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
-.aftersale-options { display: flex; gap: 14px; margin-top: 2px; border-top: 1px solid #faebd7; padding-top: 8px;}
+.aftersale-row-picks { display: flex; align-items: center; gap: 12px; width: 100%; border-bottom: 1px dashed #faebd7; padding-bottom: 8px; }
+.aftersale-options { display: flex; gap: 14px; margin-top: 2px; }
 .aftersale-options label { display: flex; align-items: center; gap: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }
 .btn-stock-gate { background: linear-gradient(135deg, var(--primary), #6b266c); color: #fff; padding: 14px; width: 100%; border-radius: 10px; font-size: 15px; font-weight: 700; margin-bottom: 16px; text-align: center; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(74,21,75,0.15);}
 .btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center;}
@@ -252,7 +255,7 @@ async function openEmployee(code, name){
     document.getElementById('list').innerHTML = `
       <button class="btn-stock-gate" onclick="openStockManagement()">📦 库存管理</button>
       <div style='font-size:14px; font-weight:700; color:var(--primary); margin: 6px 0 14px 4px;'>门店总数：0 家</div>
-      <div class="sub" style="text-align:center;padding:20px;color:red;">⚠️ 该员工未绑定 any 门店</div>`;
+      <div class="sub" style="text-align:center;padding:20px;color:red;">⚠️ 该员工未绑定任何门店</div>`;
     return;
   }
 
@@ -433,7 +436,7 @@ function renderStockPage(){
         <div class="stock-row">
           <div style="font-weight:600; font-size:15px; color:var(--primary);">${p.spec} ${p.product_name}</div>
           <div style="font-size:13px; margin-top:6px; color:#333; background:#f0ebf1; padding:6px 10px; border-radius:6px;">
-            当前库存: ${isOreoSpecial ? `<strong>${totalPcs}</strong> 包` : `<strong>${displayCases}</strong> 件 ${specBox > 0 ? `<strong>${displayBoxes}</strong> 中盒 ` : ''}<strong>${displayPcs}</strong> 个`}
+            当前库存: ${isOreoSpecial ? `<strong>${totalPcs}</strong> 个` : `<strong>${displayCases}</strong> 件 ${specBox > 0 ? `<strong>${displayBoxes}</strong> 中盒 ` : ''}<strong>${displayPcs}</strong> 个`}
           </div>
           <div class="stock-input-group">
             <select class="stock-dir-select" onchange="updateStockInput('${p.id}', 'dir', this.value)">
@@ -443,7 +446,7 @@ function renderStockPage(){
             
             ${isOreoSpecial ? `
               <div class="picker-wrapper">
-                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'pcs', this.value)">${makePureQtyOptionsHtml(200, curP)}</select><span class="unit-txt">包</span>
+                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'pcs', this.value)">${makePureQtyOptionsHtml(200, curP)}</select><span class="unit-txt">个</span>
               </div>
             ` : `
               <div class="picker-wrapper">
@@ -490,7 +493,7 @@ async function submitStock(){
       let newTotal = dir === 'plus' ? currentTotal + delta : currentTotal - delta;
       if (newTotal < 0) { alert(`❌ [${p.product_name}] 可用库存不足！`); return; }
       updates.push({ employee_code: stockData.emp_code, product_id: id, stock_qty: newTotal });
-      reportLines.push(`• [${p.spec} ${p.product_name}] ${dir==='plus'?'增加':'减少'} : ${isOreoSpecial ? `${addedPcs}包` : `${addedCases}件${addedBoxes}盒${addedPcs}个`}`);
+      reportLines.push(`• [${p.spec} ${p.product_name}] ${dir==='plus'?'增加':'减少'} : ${isOreoSpecial ? `${addedPcs}个` : `${addedCases}件${addedBoxes}盒${addedPcs}个`}`);
     }
   }
   if(!hasData){ alert("请输入变更量！"); return; }
@@ -588,17 +591,15 @@ async function viewOrderDetail(orderId, orderDate) {
     ${items.map(it => {
       const p = products.find(x => x.id == it.product_id) || { product_name: '未知商品', spec: '常规' };
       const parsedReturn = parseReturnHandleText(it.return_handle);
-      const isOreoSpecial = isSpecialSpecOreo(p);
-      const decPlaces = getPriceDecimalPlaces(it.product_id); 
       return `
         <div class='item'>
           <div class="item-main-row">
             <div class='prod-info'>
               <div class='prod-name'>${p.spec} ${p.product_name}</div>
-              ${parsedReturn.qty > 0 ? `<div style="font-size:12px; color:${parsedReturn.handle==='SCRAP'?'red':'#e6a23c'};">${parsedReturn.handle==='SCRAP'?'🔴 报损':'🟢 良品'}: ${parsedReturn.qty}包</div>` : ''}
-              ${(it.gift_qty||0) > 0 ? `<div style="font-size:12px; color:#1890ff;">🎁 赠送: ${it.gift_qty}包</div>` : ''}
+              ${parsedReturn.qty > 0 ? `<div style="font-size:12px; color:${parsedReturn.handle==='SCRAP'?'red':'#e6a23c'};">${parsedReturn.handle==='SCRAP'?'🔴 报损':'🟢 良品'}: ${parsedReturn.qty}个</div>` : ''}
+              ${(it.gift_qty||0) > 0 ? `<div style="font-size:12px; color:#1890ff;">🎁 赠送: ${it.gift_qty}个</div>` : ''}
             </div>
-            <div style="text-align:right; font-size:14px;">销售: <strong>${it.qty}</strong> ${isOreoSpecial?'中盒':'个'}<br><span class="sub">${Number(it.price).toFixed(decPlaces)}元</span></div>
+            <div style="text-align:right; font-size:14px;">销售: <strong>${it.qty}</strong> 个<br><span class="sub">${Number(it.price).toFixed(getPriceDecimalPlaces(it.product_id))}元</span></div>
           </div>
         </div>`;
     }).join('')}
@@ -624,10 +625,9 @@ function editExistingOrder(orderId, orderDate, rawItemsEncoded) {
     const giftBags = it.gift_qty || 0;
     const returnBags = parsedReturn.qty || 0;
 
-    // 📐 历史老单据的纯库存消耗记录追溯
     let oldNet = saleBags + giftBags;
     if (parsedReturn.handle === 'RESTORE') {
-      oldNet -= returnBags; // 老单据如果是良品，则曾把库存加回过
+      oldNet -= returnBags; 
     }
     orderData.oldItemsMap[it.product_id] = oldNet; 
   });
@@ -676,6 +676,20 @@ function calculateLiveOrderAmounts() {
     卖进：${s.toFixed(1)} 元 | 赠送：${g.toFixed(1)} 元<br>
     🟢良品：${res.toFixed(1)} 元 | 🔴报损：${scr.toFixed(1)} 元
   `;
+
+  products.forEach(p => {
+    const item = orderData.items[p.id];
+    const spanEl = document.getElementById(`row_net_${p.id}`);
+    if (spanEl) {
+      if (item) {
+        const rowRes = getLiveRowAmounts(p, item.qty || 0, item.price || 0, item.gift_qty || 0, item.return_qty || 0, item.return_handle);
+        const rowNet = rowRes.saleAmount - rowRes.scrapAmount - rowRes.giftAmount;
+        spanEl.innerText = `实收:${rowNet.toFixed(1)}`;
+      } else {
+        spanEl.innerText = `实收:0.0`;
+      }
+    }
+  });
 }
 
 function renderOrder(){
@@ -695,6 +709,9 @@ function renderOrder(){
       
       const itData = orderData.items[p.id] || { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
       const stepPlaces = getPriceDecimalPlaces(p.id);
+      
+      const initialRowRes = getLiveRowAmounts(p, itData.qty, itData.price, itData.gift_qty, itData.return_qty, itData.return_handle);
+      const initialRowNet = initialRowRes.saleAmount - initialRowRes.scrapAmount - initialRowRes.giftAmount;
 
       return `
         <div class='item'>
@@ -705,12 +722,13 @@ function renderOrder(){
             </div>
             
             <div class='control-group'>
+              <div id="row_net_${p.id}" class="live-row-net-txt">实收:${initialRowNet.toFixed(1)}</div>
               <div class="picker-wrapper">
                 <span class="label-txt">销售:</span>
                 <select class="ios-picker" onchange="pickerChangeQty('${p.id}', this.value)">
                   ${makePureQtyOptionsHtml(100, itData.qty)}
                 </select>
-                <span class="unit-txt">${isOreoSpecial ? '中盒' : '个'}</span>
+                <span class="unit-txt">个</span>
               </div>
               <div class="picker-wrapper">
                 <span class="label-txt">单价:</span>
@@ -723,21 +741,21 @@ function renderOrder(){
           </div>
           
           <div id="panel_${p.id}" class="aftersale-panel ${itData.showPanel ? '' : 'hide'}">
-            <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-              <div class="picker-wrapper">
+            <div class="aftersale-row-picks">
+              <div class="picker-wrapper" style="flex:1;">
                 <span class="label-txt">售后:</span>
                 <select class="ios-picker" onchange="pickerChangeReturnQty('${p.id}', this.value)">
                   ${makePureQtyOptionsHtml(100, itData.return_qty)}
                 </select>
-                <span class="unit-txt">包</span>
+                <span class="unit-txt">个</span>
               </div>
 
-              <div class="picker-wrapper">
+              <div class="picker-wrapper" style="flex:1;">
                 <span class="label-txt">赠送:</span>
                 <select class="ios-picker" onchange="pickerChangeGiftQty('${p.id}', this.value)">
                   ${makePureQtyOptionsHtml(50, itData.gift_qty)}
                 </select>
-                <span class="unit-txt">包</span>
+                <span class="unit-txt">个</span>
               </div>
             </div>
 
@@ -802,7 +820,6 @@ async function submitOrder(){
     const giftBags = item.gift_qty || 0;
     const returnBags = item.return_qty || 0;
 
-    // 🔥【关键修复】：只有良品回库才减除库存影响，过期报损不增库存！
     let currentNetImpact = saleBags + giftBags; 
     if (item.return_handle === 'RESTORE') {
       currentNetImpact -= returnBags; 
