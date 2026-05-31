@@ -72,7 +72,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
   border-radius: 4px;
 }
 
-/* 优化商品单行样式，支持换货弹窗展开 */
 .item { 
   padding:14px 4px; 
   border-bottom:1px solid #f4f2f5; 
@@ -126,7 +125,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
   margin-top: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 .aftersale-row {
   display: flex;
@@ -136,7 +135,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 }
 .aftersale-options {
   display: flex;
-  gap: 10px;
+  gap: 12px;
 }
 .aftersale-options label {
   display: flex;
@@ -162,7 +161,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .btn-counter { background:#fbf4fc; color: var(--primary); font-weight: 700; padding: 4px 10px; border-radius: 6px; font-size: 15px; border:none;}
 .btn-counter:active { background: #f3e2f5; }
 
-/* 换货专用按钮样式 */
 .btn-aftersale-trigger { background: #fff; color: #e6a23c; border: 1px solid #f5dab1; font-weight: bold; font-size: 11px; padding: 4px 6px; border-radius: 4px; }
 .btn-aftersale-trigger.active { background: #fdf6ec; border-color: #e6a23c; }
 
@@ -221,6 +219,21 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .alphabet-letter:active {
   color: var(--accent);
   transform: scale(1.3);
+}
+
+/* 金额统计横幅 */
+.amount-summary-banner {
+  background: #fdfdfd;
+  border: 1px solid #ebdfee;
+  border-left: 5px solid var(--primary);
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin: 10px 0;
+  font-size: 14px;
+  color: #2b1d2c;
+}
+.amount-summary-banner strong {
+  font-size: 15px;
 }
 </style>
 </head>
@@ -662,17 +675,30 @@ async function viewOrderDetail(orderId, orderDate) {
   document.getElementById('searchBlock').classList.add('hide');
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">🔍 正在努力加载商品清单...</div>';
   
-  // 🟢 扩展：拉取明细时同时获得销售数和换货处理数
   const { data: items } = await client.from('order_items').select('*').eq('order_id', orderId);
   if(!items) { alert("明细加载失败"); renderHistory(); return; }
   
   let rawItemsJSON = encodeURIComponent(JSON.stringify(items));
 
+  // 🟢 优化：计算详情页历史单据的「卖进」与「售后」金额说明
+  let detailSaleSum = 0;
+  let detailReturnSum = 0;
+
+  items.forEach(it => {
+    const p = products.find(x => x.id == it.product_id) || { default_price: 0 };
+    detailSaleSum += (it.qty || 0) * (it.price || 0);
+    detailReturnSum += (it.return_qty || 0) * (p.default_price || 0);
+  });
+
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">${currentStore.name}</div>
-    <div class='sub' style='margin-bottom:14px; font-size:14px;'>📅 账单日期：<strong>${orderDate}</strong></div>
+    <div class='sub' style='margin-bottom:6px; font-size:14px;'>📅 账单日期：<strong>${orderDate}</strong></div>
     
-    <div style="margin-bottom:16px;">
+    <div class="amount-summary-banner">
+      卖进：<strong>${detailSaleSum.toFixed(1)}</strong> 元 &nbsp;|&nbsp; 售后：<strong>${detailReturnSum.toFixed(1)}</strong> 元
+    </div>
+
+    <div style="margin: 12px 0 16px 0;">
       <button class="smallbtn" style="background:#fdf6ec; color:#e6a23c; border-color:#f5dab1; padding:10px 20px; font-weight:bold; font-size:14px;" 
               onclick="editExistingOrder('${orderId}', '${orderDate}', '${rawItemsJSON}')">✏️ 修改订单</button>
     </div>
@@ -723,12 +749,10 @@ function editExistingOrder(orderId, orderDate, rawItemsEncoded) {
     orderData.items[it.product_id] = { 
       qty: it.qty, 
       price: it.price,
-      // 🟢 恢复老单据的售后数据
       return_qty: it.return_qty || 0,
       return_handle: it.return_handle || 'RESTORE'
     };
     
-    // 记录旧的净库存影响量：销售数(正) - 获退良品数(负，如果是SCRAP不加库存则为0)
     let oldNet = it.qty - (it.return_handle === 'RESTORE' ? (it.return_qty || 0) : 0);
     orderData.oldItemsMap[it.product_id] = oldNet; 
   });
@@ -759,6 +783,25 @@ function openOrder(atom,name){
   renderOrder();
 }
 
+// 🟢 新增：全量动态计算并刷新开单界面的两大指标金额
+function calculateLiveOrderAmounts() {
+  let saleTotal = 0;
+  let returnTotal = 0;
+
+  products.forEach(p => {
+    const item = orderData.items[p.id];
+    if(item) {
+      saleTotal += (item.qty || 0) * (item.price || 0);
+      returnTotal += (item.return_qty || 0) * (p.default_price || 0);
+    }
+  });
+
+  const banner = document.getElementById('liveAmountBanner');
+  if(banner) {
+    banner.innerHTML = `卖进：<strong>${saleTotal.toFixed(1)}</strong> 元 &nbsp;|&nbsp; 售后：<strong>${returnTotal.toFixed(1)}</strong> 元`;
+  }
+}
+
 function renderOrder(){
   STATE = 'ORDER';
   document.getElementById('back').classList.remove('hide'); 
@@ -772,12 +815,16 @@ function renderOrder(){
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">${orderData.name}</div>
     
-    <div class='row' style='margin-bottom:16px; display:flex; align-items:center; gap:12px;'>
+    <div class='row' style='margin-bottom:8px; display:flex; align-items:center; gap:12px;'>
       <span style="font-size:15px;font-weight:700;">📅 日期：<span id='dateText'>${orderData.date}</span></span>
       <div class="date-picker-wrapper">
         <button class='smallbtn' style="background:#e8f4ff; color:#1890ff; border-color:#bae7ff; font-weight:bold; padding:6px 12px;">📅 修改日期</button>
         <input type="date" class="real-date-input" value="${orderData.date}" onchange="syncSelectedDate(this.value)">
       </div>
+    </div>
+
+    <div id="liveAmountBanner" class="amount-summary-banner">
+      卖进：<strong>0.0</strong> 元 &nbsp;|&nbsp; 售后：<strong>0.0</strong> 元
     </div>
     
     ${generateFilterHeaderHtml()}
@@ -823,8 +870,7 @@ function renderOrder(){
               </div>
             </div>
             <div class="aftersale-row">
-              <strong>旧货状态处理：</strong>
-              <div class="aftersale-options">
+              <div class="aftersale-options" style="width:100%; justify-content: flex-end;">
                 <label><input type="radio" name="handle_${p.id}" value="RESTORE" ${itData.return_handle !== 'SCRAP' ? 'checked' : ''} onchange="setReturnHandle('${p.id}', 'RESTORE')">🟢 还能卖(加库存)</label>
                 <label><input type="radio" name="handle_${p.id}" value="SCRAP" ${itData.return_handle === 'SCRAP' ? 'checked' : ''} onchange="setReturnHandle('${p.id}', 'SCRAP')">🔴 已过期(不加库存)</label>
               </div>
@@ -837,6 +883,9 @@ function renderOrder(){
     ${displayProducts.length === 0 ? '<div class="sub" style="text-align:center;padding:40px;">⚠️ 该规格下暂未建立任何商品资料</div>' : ''}
     <button class='float-submit' onclick='submitOrder()'>🚀 提交账单</button>
   `;
+
+  // 渲染完成后首次运行计算
+  calculateLiveOrderAmounts();
 }
 
 function initItemState(id) {
@@ -857,21 +906,21 @@ function changeQty(id, v){
   initItemState(id);
   orderData.items[id].qty = Math.max(0, (orderData.items[id].qty || 0) + v); 
   document.getElementById('q_' + id).innerText = orderData.items[id].qty;
+  calculateLiveOrderAmounts(); // 🟢 触发实时金额重新计算
 }
 
 function changePrice(id, v){
   initItemState(id);
   orderData.items[id].price = +(orderData.items[id].price + v).toFixed(1); 
   document.getElementById('p_' + id).innerText = orderData.items[id].price;
+  calculateLiveOrderAmounts(); // 🟢 触发实时金额重新计算
 }
 
-// 🟢 新增：控制旧货回收数量
 function changeReturnQty(id, v) {
   initItemState(id);
   orderData.items[id].return_qty = Math.max(0, (orderData.items[id].return_qty || 0) + v);
   document.getElementById('rq_' + id).innerText = orderData.items[id].return_qty;
   
-  // 同步刷新触发器按钮上的文本
   const btn = document.getElementById(`btn_as_${id}`);
   if(orderData.items[id].return_qty > 0) {
     btn.classList.add('active');
@@ -880,9 +929,9 @@ function changeReturnQty(id, v) {
     btn.classList.remove('active');
     btn.innerText = `🔄 售后回收`;
   }
+  calculateLiveOrderAmounts(); // 🟢 触发实时金额重新计算
 }
 
-// 🟢 新增：控制旧货是属于良品还是过期损耗
 function setReturnHandle(id, handleType) {
   initItemState(id);
   orderData.items[id].return_handle = handleType;
@@ -895,7 +944,6 @@ function syncSelectedDate(val){
 }
 
 async function submitOrder(){
-  // 校验：无论是卖出了东西还是收回了旧货，只要有操作即可提交
   const hasAction = Object.keys(orderData.items).some(id => orderData.items[id].qty > 0 || orderData.items[id].return_qty > 0); 
   if(!hasAction){ alert("单据内没有任何有效的销售或售后动作，无法提交"); return; }
 
@@ -912,11 +960,7 @@ async function submitOrder(){
     const item = orderData.items[id] || { qty: 0, return_qty: 0, return_handle: 'RESTORE' };
     const oldNetImpact = orderData.oldItemsMap?.[id] || 0; 
 
-    // 🟢 极其精密的库存流转计算：
-    // 本次净库存减少量 = 本次开单送出数量 - (如果是良品回收 ? 回收数量 : 0)
     let currentNetImpact = item.qty - (item.return_handle === 'RESTORE' ? (item.return_qty || 0) : 0);
-    
-    // 多退少补差异 = 当前要减的 - 历史老单已经减掉的
     const delta = currentNetImpact - oldNetImpact; 
     
     const currentAvailStock = liveStockMap[id] || 0;
@@ -926,21 +970,18 @@ async function submitOrder(){
       isStockDeficit = true; 
     }
 
-    // 只要对库存有绝对变动差异，或者当前单据里留有该商品，就同步刷入
     if (delta !== 0 || item.qty > 0 || item.return_qty > 0) {
       stockUpdates.push({ employee_code: currentEmployee.code, product_id: id, stock_qty: finalNewStock });
     }
   }
 
   if (orderData.id) {
-    // 处于【修改已有历史订单】分支
     const { error: updateOrderErr } = await client.from('orders').update({ order_date: orderData.date }).eq('id', orderData.id);
     if(updateOrderErr){ alert("账单日期更新失败：" + updateOrderErr.message); return; }
 
     const { error: delErr } = await client.from('order_items').delete().eq('order_id', orderData.id);
     if(delErr){ alert("旧账单明细清空失败：" + delErr.message); return; }
 
-    // 重新写入新明细（包含售后数据）
     const items = []; 
     Object.keys(orderData.items).forEach(id => { 
       const it = orderData.items[id]; 
@@ -959,7 +1000,6 @@ async function submitOrder(){
     if(itemErr){ alert("新明细覆盖写入失败：" + itemErr.message); return; }
 
   } else {
-    // 处于【纯新增开单】分支
     const { data: o, error } = await client.from('orders').insert({ employee_code: currentEmployee.code, atom_code: orderData.atom, order_date: orderData.date }).select().single();
     if(error){ alert("主订单提交失败：" + error.message); return; }
 
