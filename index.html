@@ -487,7 +487,7 @@ function renderHistory(){
     <div class="big-store-title">${currentStore.name}</div>
     <div style="margin: 14px 0;"><button class="btn-new-order" onclick="openOrder('${currentStore.atom}','${currentStore.name}')">＋ 新增单据</button></div>
     ${historyOrders.map(o => `
-        <div class="history-item" onclick="viewOrderDetail('${o.id}', '${o.order_date}')">
+        <div class="history-item" onclick="viewOrderDetail('${o.id}', '${o.order_date}', false)">
           <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
             <span style="font-size:15px; font-weight:700;">📅 ${o.order_date}</span>
             <span style="color:var(--primary); font-size:14px;">详情 →</span>
@@ -502,8 +502,9 @@ function renderHistory(){
   `;
 }
 
-async function viewOrderDetail(orderId, orderDate) {
+async function viewOrderDetail(orderId, orderDate, fromReport = false) {
   STATE = 'DETAIL'; 
+  document.getElementById('list').setAttribute('data-from-report', fromReport ? 'true' : 'false');
   document.getElementById('editStateBadge').classList.add('hide'); 
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">🔍 正在努力加载商品清单...</div>';
   const { data: items } = await client.from('order_items').select('*').eq('order_id', orderId);
@@ -563,7 +564,6 @@ async function viewOrderDetail(orderId, orderDate) {
   `;
 }
 
-/* 📊 核心修复函数一：打开指定日期下【当前员工】独立归属的卖进日报 */
 async function openSaleReport(targetDate) {
   STATE = 'REPORT';
   orderData = null;
@@ -579,7 +579,6 @@ async function openSaleReport(targetDate) {
   selectedReportDate = targetDate;
   document.getElementById('list').innerHTML = `<div style="color:#756676;padding:10px;">📊 正在拉取 [${targetDate}] 的销售数据统计...</div>`;
 
-  // 1. 严格增加约束：仅拉取当前选择的员工(currentEmployee.code)以及特定日期的单据，实现人与人的完美数据隔离
   const { data: dayOrders } = await client.from('orders')
     .select('*')
     .eq('employee_code', currentEmployee.code)
@@ -590,7 +589,6 @@ async function openSaleReport(targetDate) {
     return;
   }
 
-  // 2. 批量获取单据明细
   const oIds = dayOrders.map(o => o.id);
   const { data: dayItems } = await client.from('order_items').select('*').in('order_id', oIds);
   const itemsList = dayItems || [];
@@ -598,7 +596,6 @@ async function openSaleReport(targetDate) {
   let dayTotalSale = 0; let dayTotalGiftAmt = 0; let dayTotalScrapAmt = 0;
   let totalGiftPcs = 0; let totalScrapPcs = 0;
   
-  // 以门店订单作为聚合主体结构
   const orderSummaryMap = {};
 
   dayOrders.forEach(o => {
@@ -620,7 +617,6 @@ async function openSaleReport(targetDate) {
     if(!p) return;
     const parsed = parseReturnHandleText(it.return_handle);
 
-    // 防御性数值转换，彻底杜绝出现 0000 字符串合并现象
     const qtyNum = Number(it.qty || 0);
     const priceNum = Number(it.price || 0);
     const giftQtyNum = Number(it.gift_qty || 0);
@@ -647,7 +643,6 @@ async function openSaleReport(targetDate) {
   renderReportHtml(targetDate, dayTotalSale, dayNetRevenue, totalGiftPcs, totalScrapPcs, Object.values(orderSummaryMap));
 }
 
-/* 📊 核心修复函数二：渲染带有门店维度的日报 HTML，点击可反向渗透进入编辑 */
 function renderReportHtml(dateStr, saleSum, netSum, totalGift, totalScrap, rows) {
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">📈 卖进数据日报</div>
@@ -669,17 +664,17 @@ function renderReportHtml(dateStr, saleSum, netSum, totalGift, totalScrap, rows)
       </div>
     </div>
 
-    <div style="font-size:14px; font-weight:800; color:var(--primary); margin:18px 0 8px 4px;">🏪 当日有开单的门店明细 (点击进入查看/修改)</div>
+    <div style="font-size:14px; font-weight:800; color:var(--primary); margin:18px 0 8px 4px;">🏪 当当日订单明细</div>
     ${rows.length === 0 ? `<div class="sub" style="text-align:center; padding:30px; color:#aaa;">该日期下该员工没有任何开单流水</div>` : 
       rows.map(r => `
         <div class="history-item" style="cursor:pointer; border-left:4px solid var(--primary); padding:14px; margin-bottom:10px;" 
-             onclick="currentStore={atom:'${r.atomCode}', name:'${r.storeName}'}; viewOrderDetail('${r.orderId}', '${r.orderDate}')">
+             onclick="currentStore={atom:'${r.atomCode}', name:'${r.storeName}'}; viewOrderDetail('${r.orderId}', '${r.orderDate}', true)">
           <div style="width:100%; display:flex; justify-content:space-between; align-items:center;">
             <strong style="font-size:15px; color:var(--primary);">${r.storeName}</strong>
             <span style="color:var(--text-muted); font-size:13px;">查看明细 ✏️</span>
           </div>
           <div style="font-size: 12px; color: var(--text-muted); margin-top:4px;">
-            <span>门店编码: ${r.atomCode} | 商品品项数: ${r.itemCount} 款</span><br>
+            <span>商品项数: ${r.itemCount} 款</span><br>
             <span style="color:#2b1d2c; font-weight:700; font-size:13px;">💵 该店实际营收：${r.netRevenue.toFixed(1)} 元</span>
           </div>
         </div>
@@ -843,7 +838,6 @@ function initItemState(id) {
 }
 
 function pickerChangeQty(id, value) { initItemState(id); orderData.items[id].qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
-// 修复点：单价采用 parseFloat 保持其浮点特征
 function pickerChangePrice(id, value) { initItemState(id); orderData.items[id].price = parseFloat(value) || 0; calculateLiveOrderAmounts(); }
 function pickerChangeGiftQty(id, value) { initItemState(id); orderData.items[id].gift_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
 function pickerChangeReturnQty(id, value) { initItemState(id); orderData.items[id].return_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
@@ -935,14 +929,20 @@ function goBack(){
     renderStores(); 
   }
   else if(STATE === 'DETAIL') {
-    renderHistory();
+    const isFromReport = document.getElementById('list').getAttribute('data-from-report') === 'true';
+    if(isFromReport) {
+      openSaleReport(selectedReportDate);
+    } else {
+      renderHistory();
+    }
   }
   else if(STATE === 'ORDER') {
     if(orderData?.id) {
       const savedId = orderData.id;
       const savedDate = orderData.date;
+      const isFromReport = document.getElementById('list').getAttribute('data-from-report') === 'true';
       orderData = null; 
-      viewOrderDetail(savedId, savedDate);
+      viewOrderDetail(savedId, savedDate, isFromReport);
     } else {
       orderData = null;
       renderHistory();
