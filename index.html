@@ -126,16 +126,21 @@ let currentSelectedSpec = "ALL";
 let historyOrders = []; 
 let stockData = {}; 
 
-const BOX_SALE_OREO_IDS = [19, 20];          
-const DOUBLE_DECIMAL_PRICE_IDS = [49,50,51,52,53,54,55];   
-
-function getPriceDecimalPlaces(prodId) {
-  return DOUBLE_DECIMAL_PRICE_IDS.includes(Number(prodId)) ? 2 : 1;
+// 🎯 新业务规则检查：通过判断规格文本中是否含有“3片装”来启用特殊包规处理
+function isSpecialSpecOreo(productObj) {
+  if (!productObj || !productObj.spec) return false;
+  return productObj.spec.includes("3片装");
 }
 
-function getLiveRowAmounts(prodId, qty, price, giftQty, returnQty) {
+// 🎯 新业务规则检查：商品ID属于 49 到 55 之间的保留 2 位小数，其余保留 1 位
+function getPriceDecimalPlaces(prodId) {
+  const idNum = Number(prodId);
+  return (idNum >= 49 && idNum <= 55) ? 2 : 1;
+}
+
+function getLiveRowAmounts(productObj, qty, price, giftQty, returnQty) {
   let saleAmount = 0; let giftAmount = 0; let returnAmount = 0;
-  if (BOX_SALE_OREO_IDS.includes(Number(prodId))) {
+  if (isSpecialSpecOreo(productObj)) {
     const singleBagPrice = 17.5 / 11;
     saleAmount = qty * price; 
     giftAmount = giftQty * singleBagPrice;
@@ -356,7 +361,6 @@ function generateFilterHeaderHtml() {
 function selectBrand(brandName) { currentSelectedBrand = brandName; currentSelectedSpec = "ALL"; if(STATE === 'ORDER') renderOrder(); else if(STATE === 'STOCK') renderStockPage(); }
 function selectSpec(specName) { currentSelectedSpec = specName; if(STATE === 'ORDER') renderOrder(); else if(STATE === 'STOCK') renderStockPage(); }
 
-// 🎯 规范化：滚轮里面纯粹存放纯数字，利于iOS底部滚轮识别，没有任何单位字符干扰
 function makePureQtyOptionsHtml(max, current) {
   let html = '';
   for(let i=0; i<=max; i++) {
@@ -386,7 +390,7 @@ function renderStockPage(){
     <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px;'>🏢 主体：${currentEmployee.name}</div>
     ${generateFilterHeaderHtml()}
     ${displayProducts.map(p => {
-      const isOreoSpecial = BOX_SALE_OREO_IDS.includes(Number(p.id));
+      const isOreoSpecial = isSpecialSpecOreo(p);
       const specCase = p.pcs_per_case || 24; const specBox = p.pcs_per_box || 0;    
       const totalPcs = stockData.currentStockMap[p.id] || 0; 
 
@@ -450,7 +454,7 @@ async function submitStock(){
 
   for(let id of addIds){
     const p = products.find(x => x.id == id);
-    const isOreoSpecial = BOX_SALE_OREO_IDS.includes(Number(id));
+    const isOreoSpecial = isSpecialSpecOreo(p);
     const specCase = p.pcs_per_case || 24; const specBox = p.pcs_per_box || 0;
     const dir = stockData.additions[id].dir || 'plus';
     const addedCases = stockData.additions[id].cases || 0;
@@ -492,8 +496,9 @@ async function openStoreHistory(atom, name) {
       let sSum = 0; let rSum = 0; let gSum = 0;
       const oItems = allItems.filter(it => it.order_id === o.id);
       oItems.forEach(it => {
+        const pObj = products.find(x => x.id == it.product_id);
         const parsedReturn = parseReturnHandleText(it.return_handle);
-        const rowRes = getLiveRowAmounts(it.product_id, it.qty || 0, it.price || 0, it.gift_qty || 0, parsedReturn.qty || 0);
+        const rowRes = getLiveRowAmounts(pObj, it.qty || 0, it.price || 0, it.gift_qty || 0, parsedReturn.qty || 0);
         sSum += rowRes.saleAmount; gSum += rowRes.giftAmount; rSum += rowRes.returnAmount;
       });
       o.saleSum = sSum; o.returnSum = rSum; o.giftSum = gSum;
@@ -530,8 +535,9 @@ async function viewOrderDetail(orderId, orderDate) {
   let detailSaleSum = 0; let detailReturnSum = 0; let detailGiftSum = 0;
 
   items.forEach(it => {
+    const pObj = products.find(x => x.id == it.product_id);
     const parsedReturn = parseReturnHandleText(it.return_handle);
-    const rowRes = getLiveRowAmounts(it.product_id, it.qty || 0, it.price || 0, it.gift_qty || 0, parsedReturn.qty || 0);
+    const rowRes = getLiveRowAmounts(pObj, it.qty || 0, it.price || 0, it.gift_qty || 0, parsedReturn.qty || 0);
     detailSaleSum += rowRes.saleAmount; detailReturnSum += rowRes.returnAmount; detailGiftSum += rowRes.giftAmount;
   });
 
@@ -542,7 +548,7 @@ async function viewOrderDetail(orderId, orderDate) {
     ${items.map(it => {
       const p = products.find(x => x.id == it.product_id) || { product_name: '未知商品', spec: '常规' };
       const parsedReturn = parseReturnHandleText(it.return_handle);
-      const isOreoSpecial = BOX_SALE_OREO_IDS.includes(Number(it.product_id));
+      const isOreoSpecial = isSpecialSpecOreo(p);
       const decPlaces = getPriceDecimalPlaces(it.product_id); 
       return `
         <div class='item'>
@@ -572,7 +578,8 @@ function editExistingOrder(orderId, orderDate, rawItemsEncoded) {
       showPanel: parsedReturn.qty > 0 || (it.gift_qty || 0) > 0
     };
     
-    const isOreoSpecial = BOX_SALE_OREO_IDS.includes(Number(it.product_id));
+    const pObj = products.find(x => x.id == it.product_id);
+    const isOreoSpecial = isSpecialSpecOreo(pObj);
     const saleBags = isOreoSpecial ? (it.qty * 11) : it.qty;
     const giftBags = it.gift_qty || 0;
     const returnBags = parsedReturn.qty || 0;
@@ -580,6 +587,14 @@ function editExistingOrder(orderId, orderDate, rawItemsEncoded) {
     let oldNet = saleBags + giftBags - (parsedReturn.handle === 'RESTORE' ? returnBags : 0);
     orderData.oldItemsMap[it.product_id] = oldNet; 
   });
+
+  // 🎯 修复核心：首次进入修改订单页，在这里对商品品牌/规格强制赋予合法高亮初值，保证一加载就能展示商品
+  if (products.length > 0) {
+    const brands = [...new Set(products.map(p => p.brand))];
+    currentSelectedBrand = brands.length > 0 ? brands[0] : null;
+    currentSelectedSpec = "ALL";
+  }
+
   document.getElementById('editStateBadge').classList.remove('hide');
   renderOrder();
 }
@@ -588,6 +603,13 @@ function openOrder(atom, name){
   STATE = 'ORDER'; const d = new Date(); 
   const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   orderData = { atom, name, date: today, items: {}, oldItemsMap: {} }; 
+  
+  // 🎯 新开单也同样保证默认品牌高亮初始化
+  if (products.length > 0) {
+    const brands = [...new Set(products.map(p => p.brand))];
+    currentSelectedBrand = brands.length > 0 ? brands[0] : null;
+    currentSelectedSpec = "ALL";
+  }
   renderOrder();
 }
 
@@ -596,7 +618,7 @@ function calculateLiveOrderAmounts() {
   products.forEach(p => {
     const item = orderData.items[p.id];
     if(item) {
-      const rowRes = getLiveRowAmounts(p.id, item.qty || 0, item.price || 0, item.gift_qty || 0, item.return_qty || 0);
+      const rowRes = getLiveRowAmounts(p, item.qty || 0, item.price || 0, item.gift_qty || 0, item.return_qty || 0);
       s += rowRes.saleAmount; r += rowRes.returnAmount; g += rowRes.giftAmount;     
     }
   });
@@ -615,7 +637,7 @@ function renderOrder(){
     <div id="liveAmountBanner" class="amount-summary-banner"></div>
     ${generateFilterHeaderHtml()}
     ${displayProducts.map(p => {
-      const isOreoSpecial = BOX_SALE_OREO_IDS.includes(Number(p.id));
+      const isOreoSpecial = isSpecialSpecOreo(p);
       const defaultPriceVal = isOreoSpecial ? 17.5 : (p.default_price || 15);
       
       const itData = orderData.items[p.id] || { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
@@ -680,7 +702,7 @@ function renderOrder(){
 function initItemState(id) {
   if(!orderData.items[id]){ 
     const p = products.find(x => x.id == id); 
-    const isOreoSpecial = BOX_SALE_OREO_IDS.includes(Number(id));
+    const isOreoSpecial = isSpecialSpecOreo(p);
     const defaultPriceVal = isOreoSpecial ? 17.5 : (p.default_price || 15);
     orderData.items[id] = { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false }; 
   }
@@ -696,7 +718,6 @@ function setReturnHandle(id, h) { initItemState(id); orderData.items[id].return_
 function syncSelectedDate(val){ if(!val) return; orderData.date = val; document.getElementById('dateText').innerText = val; }
 
 async function submitOrder(){
-  // 🎯 拦截拦截校验：统计整个订单当前有效总业务数量
   let grandTotalQty = 0;
   Object.keys(orderData.items).forEach(id => {
     const it = orderData.items[id];
@@ -721,7 +742,8 @@ async function submitOrder(){
     const item = orderData.items[id] || { qty: 0, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE' };
     const oldNetImpact = orderData.oldItemsMap?.[id] || 0; 
     
-    const isOreoSpecial = BOX_SALE_OREO_IDS.includes(Number(id));
+    const pObj = products.find(x => x.id == id);
+    const isOreoSpecial = isSpecialSpecOreo(pObj);
     const saleBags = isOreoSpecial ? (item.qty * 11) : item.qty;
     const giftBags = item.gift_qty || 0;
     const returnBags = item.return_qty || 0;
