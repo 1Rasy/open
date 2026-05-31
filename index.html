@@ -52,7 +52,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
   transform: scale(0.97);
 }
 
-/* 🟢 优化：开单与列表的条目底层容器，采用两端对齐 */
 .item { 
   padding:14px 4px; 
   border-bottom:1px solid #f4f2f5; 
@@ -65,7 +64,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 }
 .item:last-child { border-bottom: none; }
 
-/* 🟢 优化：小屏手机适配，限制名称区域，多出部分自动打省略号 */
 .prod-info { 
   flex: 1; 
   min-width: 0; 
@@ -78,7 +76,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
   text-overflow: ellipsis; 
 }
 
-/* 🟢 优化：控制组在小屏幕上死死向右对齐，缩小间距防止溢出卡片 */
 .control-group { 
   display: flex; 
   align-items: center; 
@@ -108,7 +105,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .search-clear-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #e2dde3; color: #756676; border-radius: 50%; text-align: center; line-height: 20px; font-size: 12px; cursor: pointer; font-weight: bold; display: none; z-index: 5; }
 .search-clear-btn:active { background: #d0c9d2; }
 
-/* 🟢 优化：微调增减物理按键大小，更适合手指点触同时省空间 */
 .btn-counter { background:#fbf4fc; color: var(--primary); font-weight: 700; padding: 4px 10px; border-radius: 6px; font-size: 15px; border:none;}
 .btn-counter:active { background: #f3e2f5; }
 
@@ -294,9 +290,11 @@ async function openStockManagement(){
     additions: {} 
   };
 
-  const brands = [...new Set(products.map(p => p.brand))];
-  currentSelectedBrand = brands.length > 0 ? brands[0] : null;
-  currentSelectedSpec = "ALL";
+  if(!currentSelectedBrand) {
+    const brands = [...new Set(products.map(p => p.brand))];
+    currentSelectedBrand = brands.length > 0 ? brands[0] : null;
+    currentSelectedSpec = "ALL";
+  }
 
   renderStockPage();
 }
@@ -329,7 +327,7 @@ function selectBrand(brandName) {
   if(STATE === 'ORDER') renderOrder(); else if(STATE === 'STOCK') renderStockPage(); 
 }
 function selectSpec(specName) { 
-  currentSelectedSpec = specName; 
+  currentSelectedSpec = brandName; 
   if(STATE === 'ORDER') renderOrder(); else if(STATE === 'STOCK') renderStockPage(); 
 }
 
@@ -399,12 +397,12 @@ function updateStockInput(prodId, type, val){
   else stockData.additions[prodId][type] = parseInt(val) || 0;
 }
 
-// 🟢 改造升级：更新完后，弹窗详细列出增加/减少了什么东西、多少数量
+// 🟢 智能优化：精简明细括号提示 + 修复返回Bug改为原地刷新页面
 async function submitStock(){
   const addIds = Object.keys(stockData.additions);
   let hasData = false;
   const updates = [];
-  const reportLines = []; // 用于存储账目变动详情报告
+  const reportLines = []; 
 
   for(let id of addIds){
     const p = products.find(x => x.id == id);
@@ -434,13 +432,19 @@ async function submitStock(){
       }
       updates.push({ employee_code: stockData.emp_code, product_id: id, stock_qty: newTotal });
 
-      // 组装变动明细说明文本
       const dirText = dir === 'plus' ? '增加 ➕' : '减少 ➖';
       let detailText = '';
       if(addedCases > 0) detailText += `${addedCases}件 `;
       if(addedBoxes > 0) detailText += `${addedBoxes}中盒 `;
       if(addedPcs > 0) detailText += `${addedPcs}个`;
-      reportLines.push(`• [${p.spec} ${p.product_name}] ${dirText} : ${detailText.trim()} (共${delta}个)`);
+
+      // 🟢 智能判断：如果只输入了单个“个”，去掉后面拼缀的废话括号说明
+      const isOnlyPcsInput = (addedCases === 0 && addedBoxes === 0 && addedPcs > 0);
+      if (isOnlyPcsInput) {
+        reportLines.push(`• [${p.spec} ${p.product_name}] ${dirText} : ${addedPcs}个`);
+      } else {
+        reportLines.push(`• [${p.spec} ${p.product_name}] ${dirText} : ${detailText.trim()} (共${delta}个)`);
+      }
     }
   }
 
@@ -448,11 +452,11 @@ async function submitStock(){
   const { error } = await client.from('emp_stocks').upsert(updates, { onConflict: 'employee_code,product_id' });
   if(error){ alert("库存更新失败：" + error.message); return; }
 
-  // 展现最终的变更明细账
   const finalReport = `🌟 库存更新成功！\n\n变动明细如下：\n${reportLines.join('\n')}`;
   alert(finalReport);
 
-  openEmployee(currentEmployee.code, currentEmployee.name);
+  // 🟢 核心修复：提交成功后不弹走，直接执行刷新原地数据函数，用户体验拉满
+  openStockManagement();
 }
 
 async function openStoreHistory(atom, name) {
