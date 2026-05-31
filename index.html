@@ -17,7 +17,7 @@
 }
 
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin:0; background: var(--bg-main); color: var(--text-main); padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }
-.header { padding:16px 20px; font-size:20px; font-weight: 700; background: var(--card-bg); position:sticky; top:0; z-index:10; border-bottom:2px solid var(--primary); box-shadow: 0 2px 8px rgba(74,21,75,0.08); text-align: center;}
+/* 🟢 移除：去掉了固定的顶栏样式 */
 .card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); }
 
 .back-btn {
@@ -137,8 +137,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 
 <body>
 
-<div class="header">开单+库存</div>
-
 <div class="card">
 <div id="searchBlock" class="search-wrapper">
   <input id="search" placeholder="🔍 快速搜索员工 / 门店..." oninput="handleSearch()" />
@@ -232,6 +230,7 @@ async function openEmployee(code, name){
   STATE = 'STORE';
   currentEmployee = {code, name};
 
+  // 🟢 修复：显式设定确保返回按钮回到正常可见状态
   document.getElementById('back').classList.remove('hide');
   document.getElementById('searchBlock').classList.remove('hide'); 
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📊 正在载入负责门店档案...</div>';
@@ -254,6 +253,8 @@ async function openEmployee(code, name){
 
 function renderStores(){
   STATE = 'STORE';
+  // 🟢 修复：进入门店列表时强制纠正返回按钮显隐，杜绝偶发性丢失
+  document.getElementById('back').classList.remove('hide');
   document.getElementById('searchBlock').classList.remove('hide'); 
   
   const k = getSearch();
@@ -327,12 +328,14 @@ function selectBrand(brandName) {
   if(STATE === 'ORDER') renderOrder(); else if(STATE === 'STOCK') renderStockPage(); 
 }
 function selectSpec(specName) { 
-  currentSelectedSpec = brandName; 
+  currentSelectedSpec = specName; 
   if(STATE === 'ORDER') renderOrder(); else if(STATE === 'STOCK') renderStockPage(); 
 }
 
 function renderStockPage(){
   STATE = 'STOCK';
+  // 🟢 修复：渲染页面时再次确保返回按键的可用性
+  document.getElementById('back').classList.remove('hide');
   
   const displayProducts = products.filter(p => {
     const matchBrand = p.brand === currentSelectedBrand;
@@ -397,7 +400,7 @@ function updateStockInput(prodId, type, val){
   else stockData.additions[prodId][type] = parseInt(val) || 0;
 }
 
-// 🟢 智能优化：精简明细括号提示 + 修复返回Bug改为原地刷新页面
+// 🟢 优化：彻底剔除任何形式的“(共xx个)”尾巴说明
 async function submitStock(){
   const addIds = Object.keys(stockData.additions);
   let hasData = false;
@@ -438,13 +441,8 @@ async function submitStock(){
       if(addedBoxes > 0) detailText += `${addedBoxes}中盒 `;
       if(addedPcs > 0) detailText += `${addedPcs}个`;
 
-      // 🟢 智能判断：如果只输入了单个“个”，去掉后面拼缀的废话括号说明
-      const isOnlyPcsInput = (addedCases === 0 && addedBoxes === 0 && addedPcs > 0);
-      if (isOnlyPcsInput) {
-        reportLines.push(`• [${p.spec} ${p.product_name}] ${dirText} : ${addedPcs}个`);
-      } else {
-        reportLines.push(`• [${p.spec} ${p.product_name}] ${dirText} : ${detailText.trim()} (共${delta}个)`);
-      }
+      // 🟢 优化：不管什么组合，坚决不再抛出括号说明，直接展示录入数据
+      reportLines.push(`• [${p.spec} ${p.product_name}] ${dirText} : ${detailText.trim()}`);
     }
   }
 
@@ -455,7 +453,7 @@ async function submitStock(){
   const finalReport = `🌟 库存更新成功！\n\n变动明细如下：\n${reportLines.join('\n')}`;
   alert(finalReport);
 
-  // 🟢 核心修复：提交成功后不弹走，直接执行刷新原地数据函数，用户体验拉满
+  // 原地无缝重载，且保持返回按钮依然健在
   openStockManagement();
 }
 
@@ -470,6 +468,7 @@ async function openStoreHistory(atom, name) {
 
 function renderHistory(){
   STATE = 'HISTORY';
+  document.getElementById('back').classList.remove('hide'); 
   document.getElementById('list').innerHTML = `
     <div class='sub' style='font-weight:600;color:#000;'>🏪 门店：${currentStore.name}</div>
     <div style="margin: 14px 0;"><button class="btn-new-order" onclick="openOrder('${currentStore.atom}','${currentStore.name}')">＋ 新增单据</button></div>
@@ -486,6 +485,7 @@ function renderHistory(){
 
 async function viewOrderDetail(orderId, orderDate) {
   STATE = 'DETAIL'; 
+  document.getElementById('back').classList.remove('hide'); 
   document.getElementById('searchBlock').classList.add('hide');
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">🔍 正在努力加载商品清单...</div>';
   const { data: items } = await client.from('order_items').select('*').eq('order_id', orderId);
@@ -515,6 +515,7 @@ function openOrder(atom,name){
 
 function renderOrder(){
   STATE = 'ORDER';
+  document.getElementById('back').classList.remove('hide'); 
   
   const displayProducts = products.filter(p => {
     const matchBrand = p.brand === currentSelectedBrand;
@@ -597,7 +598,7 @@ async function submitOrder(){
 function goBack(){
   autoResetSearchState();
 
-  if(STATE === 'STOCK') openEmployee(currentEmployee.code, currentEmployee.name);
+  if(STATE === 'STOCK') renderStores(); // 🟢 优化：库存页返回时回退到门店列表，不踢出到首页
   else if(STATE === 'DETAIL') renderHistory();
   else if(STATE === 'ORDER') renderHistory();
   else if(STATE === 'HISTORY') renderStores(); 
