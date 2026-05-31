@@ -42,6 +42,11 @@
 <script src="js/utils.js"></script>
 <script src="js/stock.js"></script>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/stock.js"></script>
+
 <script>
   // 补齐虚拟节点防止 stock.js 初始化报错
   ['back', 'editStateBadge', 'alphabetSidebar', 'searchBlock'].forEach(id => {
@@ -59,23 +64,30 @@
     currentEmployee: { code: empCode, name: empName }, stockData: {}
   };
 
-  // 霸道拦截核心：不管点击触发了全局的哪个命名空间，一律强制刷新库存页面
-  const doStockBrandSwitch = function(b) {
-    window.APP_STATE.currentSelectedBrand = b;
-    window.APP_STATE.currentSelectedSpec = "ALL";
-    window.renderStockPage();
-  };
-  const doStockSpecSwitch = function(s) {
-    window.APP_STATE.currentSelectedSpec = s;
-    window.renderStockPage();
-  };
+  // 【核心绝杀拦截】：不靠 onclick，靠全局点击监听
+  document.addEventListener('click', function(e) {
+    // 1. 拦截品牌切换
+    const brandBadge = e.target.closest('.brand-badge');
+    if (brandBadge) {
+      e.preventDefault();
+      e.stopPropagation();
+      const brandName = brandBadge.textContent.trim().replace('🔍', '').trim();
+      window.APP_STATE.currentSelectedBrand = brandName;
+      window.APP_STATE.currentSelectedSpec = "ALL";
+      if (typeof window.renderStockPage === 'function') window.renderStockPage();
+      return;
+    }
 
-  window.switchBrand = window.filterBrand = window.changeBrand = doStockBrandSwitch;
-  window.switchSpec = window.filterSpec = window.changeSpec = doStockSpecSwitch;
-  if(window.utils) {
-    window.utils.switchBrand = window.utils.filterBrand = doStockBrandSwitch;
-    window.utils.switchSpec = window.utils.filterSpec = doStockSpecSwitch;
-  }
+    // 2. 拦截规格切换
+    const specBadge = e.target.closest('.spec-badge');
+    if (specBadge) {
+      e.preventDefault();
+      e.stopPropagation();
+      const specName = specBadge.textContent.trim();
+      window.APP_STATE.currentSelectedSpec = specName;
+      if (typeof window.renderStockPage === 'function') window.renderStockPage();
+    }
+  }, true);
 
   async function initStockPage() {
     document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
@@ -97,5 +109,6 @@
 
   initStockPage();
 </script>
+
 </body>
 </html>
