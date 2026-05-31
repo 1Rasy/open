@@ -901,7 +901,7 @@ function renderOrder(){
               <div style="margin-top: 4px; display:flex; gap:6px;">
                 <button id="btn_as_${p.id}" class="btn-aftersale-trigger ${itData.return_qty > 0 || itData.gift_qty > 0 ? 'active' : ''}" 
                         onclick="toggleAfterSalePanel('${p.id}')">
-                  🔄 售后与赠送扩展栏 ${itData.return_qty > 0 ? `(收${itData.return_qty}个)` : ''} ${itData.gift_qty > 0 ? `(赠${itData.gift_qty}个)` : ''}
+                  🔄 售后与赠送 ${itData.return_qty > 0 ? `(收${itData.return_qty}个)` : ''} ${itData.gift_qty > 0 ? `(赠${itData.gift_qty}个)` : ''}
                 </button>
               </div>
             </div>
