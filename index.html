@@ -132,7 +132,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 
 .brand { font-weight:700; margin-top:10px; padding: 2px 0; color: var(--primary); font-size: 15px; display: flex; align-items: center; gap: 4px; }
 .sub { font-size:13px; color: var(--text-muted); margin-top: 2px; }
-.hide { display:none !important; } /* 强制隐藏覆盖 */
+.hide { display:none !important; }
 
 .history-item { background: #faf9fa; padding:14px 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #eeeade; display: flex; justify-content: space-between; align-items: center; }
 .float-submit { position: fixed; right: 20px; bottom: 24px; z-index: 99; background: var(--primary); color: #fff; border: none; padding: 14px 26px; border-radius: 50px; font-size: 16px; font-weight: 700; box-shadow: 0 8px 16px rgba(74,21,75,0.3); }
@@ -256,7 +256,6 @@ function getSearch(){ return document.getElementById('search').value || ''; }
 function renderEmployees(){
   STATE = 'EMP';
   document.getElementById('back').classList.add('hide');
-  // 🟢 修复：进入首页时，强制、彻底销毁并隐蔽字母工具栏
   document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('alphabetSidebar').innerHTML = '';
   document.getElementById('searchBlock').classList.remove('hide'); 
@@ -346,7 +345,6 @@ function renderStores(){
   const sortedLetters = Array.from(activeLetters).sort();
   const sidebarEl = document.getElementById('alphabetSidebar');
   
-  // 🟢 修复：只有当店铺总数较多（> 10家）且未在过滤搜索时，才把字母渲染出来并允许点击
   if (sortedLetters.length > 1 && !k && f.length > 10) { 
     sidebarEl.classList.remove('hide');
     sidebarEl.innerHTML = sortedLetters.map(l => `
@@ -679,7 +677,7 @@ async function submitOrder(){
   (currentStocks || []).forEach(st => { liveStockMap[st.product_id] = st.stock_qty || 0; });
 
   const stockUpdates = [];
-  let stockWarningMessages = []; // 用于收集库存不足的弱提示信息
+  let isStockDeficit = false; // 🟢 标记是否存在负库存商品
 
   for (let id of Object.keys(orderData.items)) {
     const orderQty = orderData.items[id].qty || 0;
@@ -687,23 +685,18 @@ async function submitOrder(){
       const p = products.find(x => x.id == id);
       const currentAvailStock = liveStockMap[id] || 0;
 
-      // 🟢 优化：即使库存不足，只收集警告文字，不阻断、不退出，允许直接扣负数开单
       if (orderQty > currentAvailStock) {
-        stockWarningMessages.push(`• [${p.spec} ${p.product_name}] 缺少 ${orderQty - currentAvailStock} 个`);
+        isStockDeficit = true; // 触发库存不足状态
       }
       stockUpdates.push({ employee_code: currentEmployee.code, product_id: id, stock_qty: currentAvailStock - orderQty });
     }
   }
 
-  // 🟢 弱提示交互：如果发现开单数大于随身仓，先弹窗提示让其去补库存，但点确定后继续走正常流程提交！
-  if (stockWarningMessages.length > 0) {
-    const confirmProceed = confirm(`⚠️ 随身仓当前库存不足：\n\n${stockWarningMessages.join('\n')}\n\n该单据依然会正常提交，库存将被扣为负数。请督促该业务员后续及时前往“库存管理”中补充库存！`);
-    if (!confirmProceed) return; // 允许中途取消
-  }
-
+  // 开始录入主账单
   const { data: o, error } = await client.from('orders').insert({ employee_code: currentEmployee.code, atom_code: orderData.atom, order_date: orderData.date }).select().single();
   if(error){ alert("主订单提交失败：" + error.message); return; }
 
+  // 录入明细
   const items = []; 
   Object.keys(orderData.items).forEach(id=>{ 
     const it = orderData.items[id]; 
@@ -712,10 +705,17 @@ async function submitOrder(){
   const { error: itemErr } = await client.from('order_items').insert(items); 
   if(itemErr){ alert("商品明细提交失败：" + itemErr.message); return; }
 
+  // 更新扣减后的随身仓数据
   const { error: stockErr } = await client.from('emp_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_id' });
   if(stockErr) alert("订单已生成，但库存扣减异常：" + stockErr.message);
 
-  alert('🎉 订单提交成功！库存已实时扣减完毕。'); 
+  // 🟢 核心改动：两次合并为单次弹框提示，不卡流程，一步到位
+  if (isStockDeficit) {
+    alert('🎉 订单提交成功！\n⚠️ 提示：部分商品随身仓库存不足已扣为负数，请及时补充库存。');
+  } else {
+    alert('🎉 订单提交成功！库存已实时扣减完毕。');
+  }
+
   openStoreHistory(currentStore.atom, currentStore.name);
 }
 
@@ -731,7 +731,6 @@ function goBack(){
   } else if(STATE === 'HISTORY') {
     renderStores(); 
   } else if(STATE === 'STORE') {
-    // 🟢 修复：回退到首页时，必须清空并隐藏字母容器，完美解决首页白条残留 Bug
     document.getElementById('alphabetSidebar').classList.add('hide'); 
     document.getElementById('alphabetSidebar').innerHTML = '';
     renderEmployees();
