@@ -89,6 +89,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .alphabet-letter:active { color: var(--accent); transform: scale(1.3); }
 .amount-summary-banner { background: #fdfdfd; border: 1px solid #ebdfee; border-left: 5px solid var(--primary); padding: 10px 12px; border-radius: 6px; margin: 10px 0; font-size: 14px; color: #2b1d2c; }
 .amount-summary-banner strong { font-size: 15px; }
+.aftersale-row-summary { font-size: 12px; color: var(--text-muted); background: #f5f0f6; padding: 4px 8px; border-radius: 4px; margin-top: 2px; }
 </style>
 </head>
 <body>
@@ -190,6 +191,7 @@ function getSearch(){ return document.getElementById('search').value || ''; }
 
 function renderEmployees(){
   STATE = 'EMP';
+  orderData = null; // 彻底清除可能残留的开单状态
   document.getElementById('back').classList.add('hide');
   document.getElementById('editStateBadge').classList.add('hide'); 
   document.getElementById('alphabetSidebar').classList.add('hide'); 
@@ -214,6 +216,7 @@ function renderEmployees(){
 async function openEmployee(code, name){
   autoResetSearchState();
   STATE = 'STORE';
+  orderData = null; // 彻底清除状态
   currentEmployee = {code, name};
   document.getElementById('back').classList.remove('hide');
   document.getElementById('editStateBadge').classList.add('hide');
@@ -253,6 +256,7 @@ function getStoreFirstLetter(storeName) {
 
 function renderStores(){
   STATE = 'STORE';
+  orderData = null; // 确保清除
   document.getElementById('back').classList.remove('hide');
   document.getElementById('editStateBadge').classList.add('hide');
   document.getElementById('searchBlock').classList.remove('hide'); 
@@ -317,6 +321,7 @@ function scrollToLetterGroup(letter) {
 
 async function openStockManagement(){
   STATE = 'STOCK';
+  orderData = null; 
   document.getElementById('back').classList.remove('hide');
   document.getElementById('editStateBadge').classList.add('hide');
   document.getElementById('alphabetSidebar').classList.add('hide'); 
@@ -477,7 +482,7 @@ async function submitStock(){
 async function openStoreHistory(atom, name) {
   STATE = 'HISTORY'; currentStore = { atom, name };
   document.getElementById('back').classList.remove('hide'); 
-  document.getElementById('editStateBadge').classList.add('hide'); // 🎯 确保回到历史订单主页时隐藏
+  document.getElementById('editStateBadge').classList.add('hide'); // 确保隐藏修改提示框
   document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('searchBlock').classList.add('hide'); 
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📋 正在拉取历史记录与金额...</div>';
@@ -489,7 +494,7 @@ async function openStoreHistory(atom, name) {
     const orderIds = historyOrders.map(o => o.id);
     const { data: itemsData } = await client.from('order_items').select('*').in('order_id', orderIds);
     const allItems = itemsData || [];
-    
+
     historyOrders.forEach(o => {
       let sSum = 0; let rSum = 0; let gSum = 0;
       const oItems = allItems.filter(it => it.order_id === o.id);
@@ -507,7 +512,7 @@ async function openStoreHistory(atom, name) {
 
 function renderHistory(){
   STATE = 'HISTORY';
-  document.getElementById('editStateBadge').classList.add('hide'); // 🎯 再次确保隐藏提示框
+  document.getElementById('editStateBadge').classList.add('hide'); // 再次确隐藏
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">${currentStore.name}</div>
     <div style="margin: 14px 0;"><button class="btn-new-order" onclick="openOrder('${currentStore.atom}','${currentStore.name}')">＋ 新增单据</button></div>
@@ -527,7 +532,7 @@ function renderHistory(){
 
 async function viewOrderDetail(orderId, orderDate) {
   STATE = 'DETAIL'; 
-  document.getElementById('editStateBadge').classList.add('hide'); // 🎯 详情也隐藏
+  document.getElementById('editStateBadge').classList.add('hide'); // 详情默认也隐藏
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">🔍 正在努力加载商品清单...</div>';
   const { data: items } = await client.from('order_items').select('*').eq('order_id', orderId);
   
@@ -608,7 +613,7 @@ function openOrder(atom, name){
     currentSelectedBrand = brands.length > 0 ? brands[0] : null;
     currentSelectedSpec = "ALL";
   }
-  document.getElementById('editStateBadge').classList.add('hide'); // 新开单保证不显示提示框
+  document.getElementById('editStateBadge').classList.add('hide'); // 新开单保证关闭提示
   renderOrder();
 }
 
@@ -641,6 +646,9 @@ function renderOrder(){
       
       const itData = orderData.items[p.id] || { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
       const stepPlaces = getPriceDecimalPlaces(p.id);
+
+      // 计算当前行的售后和赠送的小计金额
+      const rowRes = getLiveRowAmounts(p, itData.qty, itData.price, itData.gift_qty, itData.return_qty);
 
       return `
         <div class='item'>
@@ -686,6 +694,11 @@ function renderOrder(){
                 <span class="unit-txt">包</span>
               </div>
             </div>
+            
+            <div class="aftersale-row-summary" id="summary_as_${p.id}">
+              💰 售后小计: <strong>${rowRes.returnAmount.toFixed(1)}</strong> 元 | 赠送小计: <strong>${rowRes.giftAmount.toFixed(1)}</strong> 元
+            </div>
+
             <div class="aftersale-options">
               <label><input type="radio" name="handle_${p.id}" value="RESTORE" ${itData.return_handle!=='SCRAP'?'checked':''} onchange="setReturnHandle('${p.id}','RESTORE')">🟢良品</label>
               <label><input type="radio" name="handle_${p.id}" value="SCRAP" ${itData.return_handle==='SCRAP'?'checked':''} onchange="setReturnHandle('${p.id}','SCRAP')">🔴报损</label>
@@ -707,13 +720,26 @@ function initItemState(id) {
   }
 }
 
-function pickerChangeQty(id, value) { initItemState(id); orderData.items[id].qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
-function pickerChangePrice(id, value) { initItemState(id); orderData.items[id].price = parseFloat(value) || 0; calculateLiveOrderAmounts(); }
-function pickerChangeGiftQty(id, value) { initItemState(id); orderData.items[id].gift_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
-function pickerChangeReturnQty(id, value) { initItemState(id); orderData.items[id].return_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
+// 联动刷新本行售后金额组件的辅助函数
+function refreshRowPanelSummary(id) {
+  const p = products.find(x => x.id == id);
+  const itData = orderData.items[id];
+  if(p && itData) {
+    const rowRes = getLiveRowAmounts(p, itData.qty, itData.price, itData.gift_qty, itData.return_qty);
+    const el = document.getElementById(`summary_as_${id}`);
+    if(el) {
+      el.innerHTML = `💰 售后小计: <strong>${rowRes.returnAmount.toFixed(1)}</strong> 元 | 赠送小计: <strong>${rowRes.giftAmount.toFixed(1)}</strong> 元`;
+    }
+  }
+}
+
+function pickerChangeQty(id, value) { initItemState(id); orderData.items[id].qty = parseInt(value) || 0; calculateLiveOrderAmounts(); refreshRowPanelSummary(id); }
+function pickerChangePrice(id, value) { initItemState(id); orderData.items[id].price = parseFloat(value) || 0; calculateLiveOrderAmounts(); refreshRowPanelSummary(id); }
+function pickerChangeGiftQty(id, value) { initItemState(id); orderData.items[id].gift_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); refreshRowPanelSummary(id); }
+function pickerChangeReturnQty(id, value) { initItemState(id); orderData.items[id].return_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); refreshRowPanelSummary(id); }
 
 function toggleAfterSalePanel(id) { initItemState(id); orderData.items[id].showPanel = !orderData.items[id].showPanel; renderOrder(); }
-function setReturnHandle(id, h) { initItemState(id); orderData.items[id].return_handle = h; calculateLiveOrderAmounts(); }
+function setReturnHandle(id, h) { initItemState(id); orderData.items[id].return_handle = h; calculateLiveOrderAmounts(); refreshRowPanelSummary(id); }
 function syncSelectedDate(val){ if(!val) return; orderData.date = val; document.getElementById('dateText').innerText = val; }
 
 async function submitOrder(){
@@ -781,16 +807,40 @@ async function submitOrder(){
 
   if (stockUpdates.length > 0) await client.from('emp_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_id' });
   alert(isStockDeficit ? '成功提交！库存出现负数，请注意补充。' : '提交成功！');
+  
+  orderData = null; // 提交后清除开单状态
+  document.getElementById('editStateBadge').classList.add('hide');
   openStoreHistory(currentStore.atom, currentStore.name);
 }
 
 function goBack(){
-  document.getElementById('editStateBadge').classList.add('hide'); // 🎯 确保任何形式的返回都能立刻切断隐藏该框
-  if(STATE === 'STOCK') renderStores(); 
-  else if(STATE === 'DETAIL') renderHistory();
-  else if(STATE === 'ORDER') orderData?.id ? viewOrderDetail(orderData.id, orderData.date) : renderHistory();
-  else if(STATE === 'HISTORY') renderStores(); 
-  else if(STATE === 'STORE') renderEmployees();
+  document.getElementById('editStateBadge').classList.add('hide'); // 默认隐藏
+  if(STATE === 'STOCK') {
+    orderData = null;
+    renderStores(); 
+  }
+  else if(STATE === 'DETAIL') {
+    renderHistory();
+  }
+  else if(STATE === 'ORDER') {
+    if(orderData?.id) {
+      const savedId = orderData.id;
+      const savedDate = orderData.date;
+      orderData = null; // 先清除，防止 viewOrderDetail 内部连锁逻辑错误
+      viewOrderDetail(savedId, savedDate);
+    } else {
+      orderData = null;
+      renderHistory();
+    }
+  }
+  else if(STATE === 'HISTORY') {
+    orderData = null;
+    renderStores(); 
+  }
+  else if(STATE === 'STORE') {
+    orderData = null;
+    renderEmployees();
+  }
 }
 
 init();
