@@ -2,12 +2,12 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8" />
-<title>MDLZ 亿滋移动开单与库存系统</title>
+<title>开单+库存</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 
 <style>
 :root {
-  --primary: #4A154B;       /* 亿滋经典紫 */
+  --primary: #4A154B;       
   --primary-hover: #360f37; 
   --accent: #ffb81c;        
   --bg-main: #f4f2f5;       
@@ -28,10 +28,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .back-btn:active { background: #e2dde3; transform: scale(0.97); }
 .back-btn::before { content: "←"; margin-right: 6px; font-weight: bold; font-size: 16px; }
 
-/* 🟢 修改：将列表容器改造为支持多状态切换的容器，默认不强制干涉 */
 #list { width: 100%; }
 
-/* 🟢 新增：员工专属两栏网格样式（仅在员工状态下激活） */
 .emp-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -39,11 +37,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
   padding: 4px 0;
 }
 
-/* 🟢 修改：员工卡片 UI 独立优化 */
 .emp-card {
   background: #faf9fa;
   border: 1px solid #eeeade;
-  border-left: 4px solid var(--primary); /* 增加左侧精致高亮边框 */
+  border-left: 4px solid var(--primary); 
   border-radius: 8px;
   padding: 14px 12px;
   cursor: pointer;
@@ -55,9 +52,51 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
   transform: scale(0.97);
 }
 
-/* 🟢 修改：原单行列表样式，保持用于门店和商品 */
-.item { padding:14px 4px; border-bottom:1px solid #f4f2f5; display: flex; align-items: center; justify-content: flex-start; gap: 15px; }
+/* 🟢 优化：开单与列表的条目底层容器，采用两端对齐 */
+.item { 
+  padding:14px 4px; 
+  border-bottom:1px solid #f4f2f5; 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  gap: 10px; 
+  box-sizing: border-box;
+  width: 100%;
+}
 .item:last-child { border-bottom: none; }
+
+/* 🟢 优化：小屏手机适配，限制名称区域，多出部分自动打省略号 */
+.prod-info { 
+  flex: 1; 
+  min-width: 0; 
+}
+.prod-name { 
+  font-size: 15px; 
+  font-weight: 600; 
+  white-space: nowrap; 
+  overflow: hidden; 
+  text-overflow: ellipsis; 
+}
+
+/* 🟢 优化：控制组在小屏幕上死死向右对齐，缩小间距防止溢出卡片 */
+.control-group { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  flex-shrink: 0; 
+}
+.ctrl-item { 
+  display: flex; 
+  align-items: center; 
+  font-size: 14px; 
+}
+.ctrl-val { 
+  display: inline-block; 
+  min-width: 24px; 
+  text-align: center; 
+  font-weight: 700; 
+  font-size: 14px;
+}
 
 .btn-stock-gate { background: linear-gradient(135deg, var(--primary), #6b266c); color: #fff; padding: 14px; width: 100%; border-radius: 10px; font-size: 15px; font-weight: 700; margin-bottom: 16px; text-align: center; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(74,21,75,0.15);}
 .btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center;}
@@ -69,7 +108,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .search-clear-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #e2dde3; color: #756676; border-radius: 50%; text-align: center; line-height: 20px; font-size: 12px; cursor: pointer; font-weight: bold; display: none; z-index: 5; }
 .search-clear-btn:active { background: #d0c9d2; }
 
-.btn-counter { background:#fbf4fc; color: var(--primary); font-weight: 700; padding: 4px 12px; border-radius: 6px; font-size: 16px; border:none;}
+/* 🟢 优化：微调增减物理按键大小，更适合手指点触同时省空间 */
+.btn-counter { background:#fbf4fc; color: var(--primary); font-weight: 700; padding: 4px 10px; border-radius: 6px; font-size: 15px; border:none;}
 .btn-counter:active { background: #f3e2f5; }
 
 .brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px 0; }
@@ -83,12 +123,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .brand { font-weight:700; margin-top:10px; padding: 2px 0; color: var(--primary); font-size: 15px; display: flex; align-items: center; gap: 4px; }
 .sub { font-size:13px; color: var(--text-muted); margin-top: 2px; }
 .hide { display:none; }
-
-.prod-info { width: 42%; min-width: 120px; flex-shrink: 0; }
-.prod-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.control-group { display: flex; align-items: center; gap: 14px; }
-.ctrl-item { display: flex; align-items: center; font-size: 14px; }
-.ctrl-val { display: inline-block; min-width: 26px; text-align: center; font-weight: 700; }
 
 .history-item { background: #faf9fa; padding:14px 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #eeeade; display: flex; justify-content: space-between; align-items: center; }
 .float-submit { position: fixed; right: 20px; bottom: 24px; z-index: 99; background: var(--primary); color: #fff; border: none; padding: 14px 26px; border-radius: 50px; font-size: 16px; font-weight: 700; box-shadow: 0 8px 16px rgba(74,21,75,0.3); }
@@ -107,7 +141,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 
 <body>
 
-<div class="header">🍇 MDLZ 亿滋开单与库存 system</div>
+<div class="header">开单+库存</div>
 
 <div class="card">
 <div id="searchBlock" class="search-wrapper">
@@ -163,7 +197,6 @@ function handleSearch(){
   else if(STATE === 'STORE') renderStores();
 }
 
-// 🟢 抽取重置机制：解决切换页面导致的搜索条件跨页面污染白屏 Bug
 function autoResetSearchState() {
   document.getElementById('search').value = '';
   document.getElementById('clearSearch').style.display = 'none';
@@ -178,7 +211,6 @@ function clearSearchInput() {
 
 function getSearch(){ return document.getElementById('search').value || ''; }
 
-// 🟢 改造：首页员工列表变更为两栏展示
 function renderEmployees(){
   STATE = 'EMP';
   document.getElementById('back').classList.add('hide');
@@ -187,7 +219,6 @@ function renderEmployees(){
   const k = getSearch();
   const list = employees.filter(e=> (e.employee_name||'').includes(k) || (e.employee_code||'').includes(k) );
 
-  // 外部用 emp-grid 包裹实现漂亮的两栏网格瀑布流
   document.getElementById('list').innerHTML = `
     <div class="emp-grid">
       ${list.map(e=>`
@@ -201,9 +232,7 @@ function renderEmployees(){
 }
 
 async function openEmployee(code, name){
-  // 🟢 关键优化：进入新层级前，强行将上一个页面的员工搜索词清洗干净，避免污染门店
   autoResetSearchState();
-
   STATE = 'STORE';
   currentEmployee = {code, name};
 
@@ -216,8 +245,8 @@ async function openEmployee(code, name){
 
   if (codes.length === 0) {
     document.getElementById('list').innerHTML = `
-      <button class="btn-stock-gate" onclick="openStockManagement()">📦 进入 [${currentEmployee.name}] 的库存管理</button>
-      <div style='font-size:14px; font-weight:700; color:var(--primary); margin: 6px 0 14px 4px;'>🏬 负责门店总数：0 家</div>
+      <button class="btn-stock-gate" onclick="openStockManagement()">📦 库存管理</button>
+      <div style='font-size:14px; font-weight:700; color:var(--primary); margin: 6px 0 14px 4px;'>门店总数：0 家</div>
       <div class="sub" style="text-align:center;padding:20px;color:red;">⚠️ 该员工未绑定任何门店</div>`;
     return;
   }
@@ -235,10 +264,9 @@ function renderStores(){
   const f = stores.filter(s=> (s.store_name||'').includes(k) || (s.atom_code||'').includes(k) );
 
   document.getElementById('list').innerHTML = `
-    <button class="btn-stock-gate" onclick="openStockManagement()">📦 进入 [${currentEmployee.name}] 的库存管理</button>
-    <div style='font-size:14px; font-weight:700; color:var(--primary); margin: 0 0 14px 4px;'>🏬 负责门店总数：${stores.length} 家</div>
+    <button class="btn-stock-gate" onclick="openStockManagement()">📦 库存管理</button>
+    <div style='font-size:14px; font-weight:700; color:var(--primary); margin: 0 0 14px 4px;'>门店总数：${stores.length} 家</div>
 
-    <div class='sub' style='font-weight:600;margin-bottom:12px;color:var(--text-main);'>👤 负责门店清单：</div>
     ${f.map(s=>`
       <div class='item' onclick="openStoreHistory('${s.atom_code}','${s.store_name}')">
         <div>
@@ -250,7 +278,6 @@ function renderStores(){
   `;
 }
 
-// 进入库存管理
 async function openStockManagement(){
   STATE = 'STOCK';
   document.getElementById('back').classList.remove('hide');
@@ -316,7 +343,7 @@ function renderStockPage(){
   });
 
   document.getElementById('list').innerHTML = `
-    <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px;'>🏢 账户主体：${currentEmployee.name} 的随身仓库</div>
+    <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px;'>🏢 主体：${currentEmployee.name}</div>
     
     ${generateFilterHeaderHtml()}
 
@@ -362,7 +389,7 @@ function renderStockPage(){
     }).join('')}
     
     ${displayProducts.length === 0 ? '<div class="sub" style="text-align:center;padding:40px;">⚠️ 该规格下暂未建立任何商品资料</div>' : ''}
-    <button class='float-submit' onclick='submitStock()'>💾 保存并更新库存</button>
+    <button class='float-submit' onclick='submitStock()'>💾 更新库存</button>
   `;
 }
 
@@ -372,10 +399,12 @@ function updateStockInput(prodId, type, val){
   else stockData.additions[prodId][type] = parseInt(val) || 0;
 }
 
+// 🟢 改造升级：更新完后，弹窗详细列出增加/减少了什么东西、多少数量
 async function submitStock(){
   const addIds = Object.keys(stockData.additions);
   let hasData = false;
   const updates = [];
+  const reportLines = []; // 用于存储账目变动详情报告
 
   for(let id of addIds){
     const p = products.find(x => x.id == id);
@@ -404,6 +433,14 @@ async function submitStock(){
         }
       }
       updates.push({ employee_code: stockData.emp_code, product_id: id, stock_qty: newTotal });
+
+      // 组装变动明细说明文本
+      const dirText = dir === 'plus' ? '增加 ➕' : '减少 ➖';
+      let detailText = '';
+      if(addedCases > 0) detailText += `${addedCases}件 `;
+      if(addedBoxes > 0) detailText += `${addedBoxes}中盒 `;
+      if(addedPcs > 0) detailText += `${addedPcs}个`;
+      reportLines.push(`• [${p.spec} ${p.product_name}] ${dirText} : ${detailText.trim()} (共${delta}个)`);
     }
   }
 
@@ -411,7 +448,10 @@ async function submitStock(){
   const { error } = await client.from('emp_stocks').upsert(updates, { onConflict: 'employee_code,product_id' });
   if(error){ alert("库存更新失败：" + error.message); return; }
 
-  alert("🌟 仓库库存同步成功！已执行对应的增减变更。");
+  // 展现最终的变更明细账
+  const finalReport = `🌟 库存更新成功！\n\n变动明细如下：\n${reportLines.join('\n')}`;
+  alert(finalReport);
+
   openEmployee(currentEmployee.code, currentEmployee.name);
 }
 
@@ -489,7 +529,7 @@ function renderOrder(){
         <div class='prod-info'><div class='prod-name'>${p.spec} ${p.product_name}</div></div>
         <div class='control-group'>
           <div class='ctrl-item'><button class='btn-counter' onclick="changeQty('${p.id}',-1)">-</button><span class='ctrl-val' id='q_${p.id}'>${orderData.items[p.id]?.qty||0}</span><button class='btn-counter' onclick="changeQty('${p.id}',1)">+</button></div>
-          <div class='ctrl-item'><button class='btn-counter' onclick="changePrice('${p.id}',-0.1)">-</button><span class='ctrl-val' id='p_${p.id}' style='min-width:38px;'>${orderData.items[p.id]?.price ?? p.default_price}</span><button class='btn-counter' onclick="changePrice('${p.id}',0.1)">+</button><span style="font-size:12px;color:var(--text-muted);margin-left:2px;">元</span></div>
+          <div class='ctrl-item'><button class='btn-counter' onclick="changePrice('${p.id}',-0.1)">-</button><span class='ctrl-val' id='p_${p.id}' style='min-width:34px;'>${orderData.items[p.id]?.price ?? p.default_price}</span><button class='btn-counter' onclick="changePrice('${p.id}',0.1)">+</button><span style="font-size:11px;color:var(--text-muted);margin-left:1px;">元</span></div>
         </div>
       </div>
     `).join('')}
@@ -551,7 +591,6 @@ async function submitOrder(){
 }
 
 function goBack(){
-  // 🟢 关键优化：返回上一级页面时，强行将当前页面的搜索缓存清空，防止后退时污染上一级页面导致空白
   autoResetSearchState();
 
   if(STATE === 'STOCK') openEmployee(currentEmployee.code, currentEmployee.name);
