@@ -111,7 +111,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 
 .btn-stock-gate { background: linear-gradient(135deg, var(--primary), #6b266c); color: #fff; padding: 14px; width: 100%; border-radius: 10px; font-size: 15px; font-weight: 700; margin-bottom: 16px; text-align: center; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(74,21,75,0.15);}
 .btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center;}
-.smallbtn { background:#f4f2f5; color:var(--text-main); border: 1px solid #e2dde3; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500;}
+.smallbtn { background:#f4f2f5; color:var(--text-main); border: 1px solid #e2dde3; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500; cursor: pointer;}
+
+/* 隐藏原生date的外观，使其可以通过一个漂亮的按钮触发 */
+.date-picker-wrapper { position: relative; display: inline-block; }
+.real-date-input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 
 .search-wrapper { position: relative; margin: 4px 0 12px 0; width: 100%; box-sizing: border-box; }
 .search-wrapper input { width:100%; padding:12px 40px 12px 12px; margin:0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa;}
@@ -209,7 +213,7 @@ let products = [];
 
 let currentEmployee = null;
 let currentStore = null; 
-let orderData = null;
+let orderData = null; // 包含当前正在编辑/新增的单据信息
 
 let currentSelectedBrand = null; 
 let currentSelectedSpec = "ALL"; 
@@ -603,10 +607,22 @@ async function viewOrderDetail(orderId, orderDate) {
   document.getElementById('back').classList.remove('hide'); 
   document.getElementById('searchBlock').classList.add('hide');
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">🔍 正在努力加载商品清单...</div>';
+  
   const { data: items } = await client.from('order_items').select('*').eq('order_id', orderId);
   if(!items) { alert("明细加载失败"); renderHistory(); return; }
+  
+  // 将商品清单数据缓存，方便后面如果需要修改订单时直接调用
+  let rawItemsJSON = encodeURIComponent(JSON.stringify(items));
+
   document.getElementById('list').innerHTML = `
-    <div class='sub' style='font-weight:600;color:#000;'>🏪 门店：${currentStore.name}</div><div class='sub' style='margin-bottom:14px;'>📅 账单日期：${orderDate}</div>
+    <div class='sub' style='font-weight:600;color:#000;'>🏪 门店：${currentStore.name}</div>
+    <div class='sub' style='margin-bottom:14px;'>📅 账单日期：${orderDate}</div>
+    
+    <div style="margin-bottom:14px;">
+      <button class="smallbtn" style="background:#fdf6ec; color:#e6a23c; border-color:#f5dab1; padding:8px 16px; font-weight:bold;" 
+              onclick="editExistingOrder('${orderId}', '${orderDate}', '${rawItemsJSON}')">✏️ 修改该笔订单 (支持改日期/改商品/改数量)</button>
+    </div>
+
     <div style="font-size:14px; font-weight:700; margin-bottom:8px; color:var(--text-muted); border-bottom:1px solid #e5e7eb; padding-bottom:6px;">📦 已订购商品</div>
     ${items.map(it => {
       const p = products.find(x => x.id == it.product_id) || { product_name: '未知商品', spec: '常规款', brand: '其他' };
@@ -615,8 +631,41 @@ async function viewOrderDetail(orderId, orderDate) {
   `;
 }
 
+// 🟢 新增：把历史单据加载到工作区，转换为编辑模式
+function editExistingOrder(orderId, orderDate, rawItemsEncoded) {
+  STATE = 'ORDER';
+  document.getElementById('searchBlock').classList.add('hide');
+
+  const items = JSON.parse(decodeURIComponent(rawItemsEncoded));
+  
+  // 初始化工作区数据，存入原有绑定的旧订单 ID 和当时的旧商品数量（作库存回滚多退少补比对用）
+  orderData = { 
+    id: orderId, // 存在 id 表明是修改老单
+    atom: currentStore.atom, 
+    name: currentStore.name, 
+    date: orderDate, 
+    items: {},
+    oldItemsMap: {} // 记录修改前的数据
+  };
+
+  // 预填历史开单数据
+  items.forEach(it => {
+    orderData.items[it.product_id] = { qty: it.qty, price: it.price };
+    orderData.oldItemsMap[it.product_id] = it.qty; // 存入历史原扣减量
+  });
+
+  const brands = [...new Set(products.map(p => p.brand))];
+  currentSelectedBrand = brands.length > 0 ? brands[0] : null;
+  currentSelectedSpec = "ALL";
+
+  renderOrder();
+}
+
 function openOrder(atom,name){
-  STATE = 'ORDER'; const d = new Date(); const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  STATE = 'ORDER'; 
+  const d = new Date(); 
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  
   orderData = { atom, name, date: today, items: {} }; 
   
   document.getElementById('searchBlock').classList.add('hide');
@@ -639,7 +688,15 @@ function renderOrder(){
 
   document.getElementById('list').innerHTML = `
     <div class='sub' style='font-weight:600;color:#000;'>🏪 门店：${orderData.name}</div>
-    <div class='row' style='margin-bottom:10px;'><span style="font-size:15px;font-weight:700;">📅 <span id='dateText'>${orderData.date}</span></span><button class='smallbtn' onclick='editDate()'>修改日期</button></div>
+    
+    <div class='row' style='margin-bottom:12px; display:flex; align-items:center; gap:10px;'>
+      <span style="font-size:15px;font-weight:700;">📅 日期：<span id='dateText'>${orderData.date}</span></span>
+      <div class="date-picker-wrapper">
+        <button class='smallbtn' style="background:#e8f4ff; color:#1890ff; border-color:#bae7ff; font-weight:bold;">📅 修改日期</button>
+        <input type="date" class="real-date-input" value="${orderData.date}" onchange="syncSelectedDate(this.value)">
+      </div>
+      ${orderData.id ? `<span style="font-size:12px; color:#e6a23c; background:#fff7eb; padding:2px 6px; border-radius:4px; font-weight:bold;">正在编辑历史单据</span>` : ''}
+    </div>
     
     ${generateFilterHeaderHtml()}
 
@@ -666,54 +723,93 @@ function changePrice(id,v){
   if(!orderData.items[id]){ const p = products.find(x=>x.id==id); orderData.items[id] = {qty:0, price:p.default_price}; }
   orderData.items[id].price = +(orderData.items[id].price + v).toFixed(1); document.getElementById('p_'+id).innerText = orderData.items[id].price;
 }
-function editDate(){ const d = prompt('修改日期', orderData.date); if(d) { orderData.date = d; document.getElementById('dateText').innerText = d; } }
+
+// 🟢 新增：日期控件值变动监听
+function syncSelectedDate(val){
+  if(!val) return;
+  orderData.date = val;
+  document.getElementById('dateText').innerText = val;
+}
 
 async function submitOrder(){
   const hasItems = Object.keys(orderData.items).some(id => orderData.items[id].qty > 0); 
   if(!hasItems){ alert("请至少选择一件商品数量大于0"); return; }
 
+  // 获取当前最新的库存底数
   const { data: currentStocks } = await client.from('emp_stocks').select('*').eq('employee_code', currentEmployee.code);
   const liveStockMap = {};
   (currentStocks || []).forEach(st => { liveStockMap[st.product_id] = st.stock_qty || 0; });
 
   const stockUpdates = [];
-  let isStockDeficit = false; // 🟢 标记是否存在负库存商品
+  let isStockDeficit = false; 
 
-  for (let id of Object.keys(orderData.items)) {
-    const orderQty = orderData.items[id].qty || 0;
-    if (orderQty > 0) {
-      const p = products.find(x => x.id == id);
-      const currentAvailStock = liveStockMap[id] || 0;
+  // 1. 整理当前订单内全部有变动或者需要统计的商品 ID 集合
+  const allProdIds = new Set([...Object.keys(orderData.items), ...Object.keys(orderData.oldItemsMap || {})]);
 
-      if (orderQty > currentAvailStock) {
-        isStockDeficit = true; // 触发库存不足状态
-      }
-      stockUpdates.push({ employee_code: currentEmployee.code, product_id: id, stock_qty: currentAvailStock - orderQty });
+  for (let id of allProdIds) {
+    const orderQty = orderData.items[id]?.qty || 0;
+    const oldQty = orderData.oldItemsMap?.[id] || 0; // 如果是新单，则旧扣减量是 0
+
+    const currentAvailStock = liveStockMap[id] || 0;
+    
+    // 🟢 核心多退少补逻辑：实际应当继续扣减的差异量 = 新点出来的目标数 - 老订单已经扣掉的数据
+    const delta = orderQty - oldQty; 
+    const finalNewStock = currentAvailStock - delta;
+
+    if (finalNewStock < 0) {
+      isStockDeficit = true; 
+    }
+
+    // 只有发生数量调整的商品才提交更新
+    if (delta !== 0 || orderQty > 0) {
+      stockUpdates.push({ employee_code: currentEmployee.code, product_id: id, stock_qty: finalNewStock });
     }
   }
 
-  // 开始录入主账单
-  const { data: o, error } = await client.from('orders').insert({ employee_code: currentEmployee.code, atom_code: orderData.atom, order_date: orderData.date }).select().single();
-  if(error){ alert("主订单提交失败：" + error.message); return; }
+  if (orderData.id) {
+    // 🟢 处于【修改已有历史订单】分支
+    // 先更新主表的订单日期
+    const { error: updateOrderErr } = await client.from('orders').update({ order_date: orderData.date }).eq('id', orderData.id);
+    if(updateOrderErr){ alert("账单日期更新失败：" + updateOrderErr.message); return; }
 
-  // 录入明细
-  const items = []; 
-  Object.keys(orderData.items).forEach(id=>{ 
-    const it = orderData.items[id]; 
-    if(it.qty > 0){ items.push({ order_id: o.id, product_id: id, qty: it.qty, price: it.price }); } 
-  });
-  const { error: itemErr } = await client.from('order_items').insert(items); 
-  if(itemErr){ alert("商品明细提交失败：" + itemErr.message); return; }
+    // 删除掉该笔订单原先的所有旧明细
+    const { error: delErr } = await client.from('order_items').delete().eq('order_id', orderData.id);
+    if(delErr){ alert("旧账单明细清空失败：" + delErr.message); return; }
 
-  // 更新扣减后的随身仓数据
-  const { error: stockErr } = await client.from('emp_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_id' });
-  if(stockErr) alert("订单已生成，但库存扣减异常：" + stockErr.message);
+    // 重新写入新点选的明细
+    const items = []; 
+    Object.keys(orderData.items).forEach(id => { 
+      const it = orderData.items[id]; 
+      if(it.qty > 0){ items.push({ order_id: orderData.id, product_id: id, qty: it.qty, price: it.price }); } 
+    });
+    const { error: itemErr } = await client.from('order_items').insert(items); 
+    if(itemErr){ alert("新明细覆盖写入失败：" + itemErr.message); return; }
 
-  // 🟢 核心改动：两次合并为单次弹框提示，不卡流程，一步到位
-  if (isStockDeficit) {
-    alert('🎉 订单提交成功！\n⚠️ 提示：部分商品随身仓库存不足已扣为负数，请及时补充库存。');
   } else {
-    alert('🎉 订单提交成功！库存已实时扣减完毕。');
+    // 🟢 处于【纯新增普通开单】分支
+    const { data: o, error } = await client.from('orders').insert({ employee_code: currentEmployee.code, atom_code: orderData.atom, order_date: orderData.date }).select().single();
+    if(error){ alert("主订单提交失败：" + error.message); return; }
+
+    const items = []; 
+    Object.keys(orderData.items).forEach(id=>{ 
+      const it = orderData.items[id]; 
+      if(it.qty > 0){ items.push({ order_id: o.id, product_id: id, qty: it.qty, price: it.price }); } 
+    });
+    const { error: itemErr } = await client.from('order_items').insert(items); 
+    if(itemErr){ alert("商品明细提交失败：" + itemErr.message); return; }
+  }
+
+  // 统一刷入库存变动库
+  if (stockUpdates.length > 0) {
+    const { error: stockErr } = await client.from('emp_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_id' });
+    if(stockErr) alert("订单已生成，但库存扣减异常：" + stockErr.message);
+  }
+
+  // 极简提示语反馈
+  if (isStockDeficit) {
+    alert('成功提交，部分商品库存不足，请及时补充库存。');
+  } else {
+    alert('成功！');
   }
 
   openStoreHistory(currentStore.atom, currentStore.name);
@@ -727,7 +823,12 @@ function goBack(){
   } else if(STATE === 'DETAIL') {
     renderHistory();
   } else if(STATE === 'ORDER') {
-    renderHistory();
+    // 如果是从历史修改订单过来的，回退到历史详情页，否则回退到历史列表
+    if (orderData && orderData.id) {
+      viewOrderDetail(orderData.id, orderData.date);
+    } else {
+      renderHistory();
+    }
   } else if(STATE === 'HISTORY') {
     renderStores(); 
   } else if(STATE === 'STORE') {
