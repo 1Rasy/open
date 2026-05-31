@@ -53,6 +53,11 @@
 <script src="js/utils.js"></script>
 <script src="js/store.js"></script>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/store.js"></script>
+
 <script>
   const urlParams = new URLSearchParams(window.location.search);
   const empCode = urlParams.get('emp_code');
@@ -69,23 +74,31 @@
     currentStore: { atom: atomCode, name: storeName }, orderData: null
   };
 
-  // 霸道拦截核心：无论 utils.js 里面生成的函数被绑定到了哪，直接强制捕获并刷新当前开单页面
-  const doBrandSwitch = function(b) {
-    window.APP_STATE.currentSelectedBrand = b;
-    window.APP_STATE.currentSelectedSpec = "ALL";
-    window.renderOrder();
-  };
-  const doSpecSwitch = function(s) {
-    window.APP_STATE.currentSelectedSpec = s;
-    window.renderOrder();
-  };
+  // 【核心绝杀拦截】：不靠 onclick，靠全局点击监听
+  document.addEventListener('click', function(e) {
+    // 1. 拦截品牌切换
+    const brandBadge = e.target.closest('.brand-badge');
+    if (brandBadge) {
+      e.preventDefault();
+      e.stopPropagation();
+      // 从节点的 textContent 或 data 属性强行抓取品牌名称
+      const brandName = brandBadge.textContent.trim().replace('🔍', '').trim();
+      window.APP_STATE.currentSelectedBrand = brandName;
+      window.APP_STATE.currentSelectedSpec = "ALL";
+      if (typeof window.renderOrder === 'function') window.renderOrder();
+      return;
+    }
 
-  window.switchBrand = window.filterBrand = window.changeBrand = doBrandSwitch;
-  window.switchSpec = window.filterSpec = window.changeSpec = doSpecSwitch;
-  if(window.utils) {
-    window.utils.switchBrand = window.utils.filterBrand = doBrandSwitch;
-    window.utils.switchSpec = window.utils.filterSpec = doSpecSwitch;
-  }
+    // 2. 拦截规格切换
+    const specBadge = e.target.closest('.spec-badge');
+    if (specBadge) {
+      e.preventDefault();
+      e.stopPropagation();
+      const specName = specBadge.textContent.trim();
+      window.APP_STATE.currentSelectedSpec = specName;
+      if (typeof window.renderOrder === 'function') window.renderOrder();
+    }
+  }, true); // 使用捕获模式，确保在业务 JS 响应前完成拦截
 
   async function initOrderPage() {
     document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
