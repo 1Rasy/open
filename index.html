@@ -19,7 +19,6 @@
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin:0; background: var(--bg-main); color: var(--text-main); padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }
 .card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); position: relative;}
 
-/* 顶部返回与状态栏整行容器 */
 .top-action-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
 
 .back-btn {
@@ -30,12 +29,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .back-btn:active { background: #e2dde3; transform: scale(0.97); }
 .back-btn::before { content: "←"; margin-right: 6px; font-weight: bold; font-size: 16px; }
 
-/* 移到返回按钮右侧的提示标签 */
 .editing-badge { font-size:12px; color:#e6a23c; background:#fff7eb; padding:6px 12px; border-radius:14px; font-weight:bold; border: 1px solid #f5dab1; }
 
 #list { width: 100%; }
 
-/* 大门店标题样式 */
 .big-store-title { font-size: 22px; font-weight: 800; color: #111827; margin: 4px 0 14px 0; letter-spacing: -0.5px; }
 
 .emp-grid {
@@ -75,17 +72,19 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
   border-radius: 4px;
 }
 
+/* 优化商品单行样式，支持换货弹窗展开 */
 .item { 
   padding:14px 4px; 
   border-bottom:1px solid #f4f2f5; 
-  display: flex; 
-  align-items: center; 
-  justify-content: space-between; 
-  gap: 10px; 
   box-sizing: border-box;
   width: 100%;
 }
-.item:last-child { border-bottom: none; }
+.item-main-row {
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between; 
+  gap: 10px;
+}
 
 .prod-info { 
   flex: 1; 
@@ -112,10 +111,39 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 }
 .ctrl-val { 
   display: inline-block; 
-  min-width: 24px; 
+  min-width: 20px; 
   text-align: center; 
   font-weight: 700; 
   font-size: 14px;
+}
+
+/* 极简售后扩展面板 */
+.aftersale-panel {
+  background: #fdfaf6;
+  border: 1px dashed #f5dab1;
+  border-radius: 6px;
+  padding: 10px;
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.aftersale-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+}
+.aftersale-options {
+  display: flex;
+  gap: 10px;
+}
+.aftersale-options label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
 .btn-stock-gate { background: linear-gradient(135deg, var(--primary), #6b266c); color: #fff; padding: 14px; width: 100%; border-radius: 10px; font-size: 15px; font-weight: 700; margin-bottom: 16px; text-align: center; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(74,21,75,0.15);}
@@ -133,6 +161,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 
 .btn-counter { background:#fbf4fc; color: var(--primary); font-weight: 700; padding: 4px 10px; border-radius: 6px; font-size: 15px; border:none;}
 .btn-counter:active { background: #f3e2f5; }
+
+/* 换货专用按钮样式 */
+.btn-aftersale-trigger { background: #fff; color: #e6a23c; border: 1px solid #f5dab1; font-weight: bold; font-size: 11px; padding: 4px 6px; border-radius: 4px; }
+.btn-aftersale-trigger.active { background: #fdf6ec; border-color: #e6a23c; }
 
 .brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px 0; }
 .brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 7px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: 600; border: 1px solid transparent; }
@@ -272,7 +304,7 @@ function getSearch(){ return document.getElementById('search').value || ''; }
 function renderEmployees(){
   STATE = 'EMP';
   document.getElementById('back').classList.add('hide');
-  document.getElementById('editStateBadge').classList.add('hide'); // 隐藏修改标识
+  document.getElementById('editStateBadge').classList.add('hide'); 
   document.getElementById('alphabetSidebar').classList.add('hide'); 
   document.getElementById('alphabetSidebar').innerHTML = '';
   document.getElementById('searchBlock').classList.remove('hide'); 
@@ -388,9 +420,11 @@ function renderStores(){
       groupedStores[letter].forEach(s => {
         listHtml += `
           <div class='item' onclick="openStoreHistory('${s.atom_code}','${s.store_name}')">
-            <div>
-              <strong style="font-size:16px;color:var(--primary);">${s.store_name}</strong>
-              <div class='sub'>${s.atom_code}</div>
+            <div class="item-main-row">
+              <div>
+                <strong style="font-size:16px;color:var(--primary);">${s.store_name}</strong>
+                <div class='sub'>${s.atom_code}</div>
+              </div>
             </div>
           </div>
         `;
@@ -607,7 +641,6 @@ function renderHistory(){
   document.getElementById('back').classList.remove('hide'); 
   document.getElementById('editStateBadge').classList.add('hide');
   
-  // 🟢 升级：去掉前缀，门店名称直接大字号加粗
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">${currentStore.name}</div>
     <div style="margin: 14px 0;"><button class="btn-new-order" onclick="openOrder('${currentStore.atom}','${currentStore.name}')">＋ 新增单据</button></div>
@@ -629,12 +662,12 @@ async function viewOrderDetail(orderId, orderDate) {
   document.getElementById('searchBlock').classList.add('hide');
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">🔍 正在努力加载商品清单...</div>';
   
+  // 🟢 扩展：拉取明细时同时获得销售数和换货处理数
   const { data: items } = await client.from('order_items').select('*').eq('order_id', orderId);
   if(!items) { alert("明细加载失败"); renderHistory(); return; }
   
   let rawItemsJSON = encodeURIComponent(JSON.stringify(items));
 
-  // 🟢 升级：大字号门店标题，且精简修改订单按钮，去掉多余说明
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">${currentStore.name}</div>
     <div class='sub' style='margin-bottom:14px; font-size:14px;'>📅 账单日期：<strong>${orderDate}</strong></div>
@@ -644,10 +677,29 @@ async function viewOrderDetail(orderId, orderDate) {
               onclick="editExistingOrder('${orderId}', '${orderDate}', '${rawItemsJSON}')">✏️ 修改订单</button>
     </div>
 
-    <div style="font-size:14px; font-weight:700; margin-bottom:8px; color:var(--text-muted); border-bottom:1px solid #e5e7eb; padding-bottom:6px;">📦 已订购商品</div>
+    <div style="font-size:14px; font-weight:700; margin-bottom:8px; color:var(--text-muted); border-bottom:1px solid #e5e7eb; padding-bottom:6px;">📦 单据商品明细</div>
     ${items.map(it => {
       const p = products.find(x => x.id == it.product_id) || { product_name: '未知商品', spec: '常规款', brand: '其他' };
-      return `<div class='item'><div class='prod-info' style="width:55%;"><div class='prod-name'>${p.spec} ${p.product_name}</div><div class='sub'>${p.brand}</div></div><div style="font-size:14px; color:#4b5563; margin-left:auto; text-align:right;"><div>数量: <strong style="color:var(--text-main);font-size:15px;">${it.qty}</strong></div><div class="sub">价格: ${it.price}元</div></div></div>`;
+      
+      let afterSaleText = '';
+      if(it.return_qty > 0) {
+        afterSaleText = `<div style="font-size:12px; color:#e6a23c;">🔄 回收旧货: ${it.return_qty} (${it.return_handle === 'RESTORE' ? '良品入库' : '过期报损'})</div>`;
+      }
+
+      return `
+        <div class='item'>
+          <div class="item-main-row">
+            <div class='prod-info' style="width:55%;">
+              <div class='prod-name'>${p.spec} ${p.product_name}</div>
+              <div class='sub'>${p.brand}</div>
+              ${afterSaleText}
+            </div>
+            <div style="font-size:14px; color:#4b5563; margin-left:auto; text-align:right;">
+              <div>送出/销售: <strong style="color:var(--text-main);font-size:15px;">${it.qty}</strong></div>
+              <div class="sub">单价: ${it.price}元</div>
+            </div>
+          </div>
+        </div>`;
     }).join('')}
   `;
 }
@@ -668,15 +720,23 @@ function editExistingOrder(orderId, orderDate, rawItemsEncoded) {
   };
 
   items.forEach(it => {
-    orderData.items[it.product_id] = { qty: it.qty, price: it.price };
-    orderData.oldItemsMap[it.product_id] = it.qty; 
+    orderData.items[it.product_id] = { 
+      qty: it.qty, 
+      price: it.price,
+      // 🟢 恢复老单据的售后数据
+      return_qty: it.return_qty || 0,
+      return_handle: it.return_handle || 'RESTORE'
+    };
+    
+    // 记录旧的净库存影响量：销售数(正) - 获退良品数(负，如果是SCRAP不加库存则为0)
+    let oldNet = it.qty - (it.return_handle === 'RESTORE' ? (it.return_qty || 0) : 0);
+    orderData.oldItemsMap[it.product_id] = oldNet; 
   });
 
   const brands = [...new Set(products.map(p => p.brand))];
   currentSelectedBrand = brands.length > 0 ? brands[0] : null;
   currentSelectedSpec = "ALL";
 
-  // 🟢 升级：将提示标识显示在顶部返回按钮的右侧
   document.getElementById('editStateBadge').classList.remove('hide');
 
   renderOrder();
@@ -690,7 +750,7 @@ function openOrder(atom,name){
   orderData = { atom, name, date: today, items: {} }; 
   
   document.getElementById('searchBlock').classList.add('hide');
-  document.getElementById('editStateBadge').classList.add('hide'); // 新增单据不显示该标识
+  document.getElementById('editStateBadge').classList.add('hide'); 
 
   const brands = [...new Set(products.map(p => p.brand))];
   currentSelectedBrand = brands.length > 0 ? brands[0] : null;
@@ -709,7 +769,6 @@ function renderOrder(){
     return matchBrand && matchSpec;
   });
 
-  // 🟢 升级：统一大字号门店标题，且清空了日期行的拥挤状态标签
   document.getElementById('list').innerHTML = `
     <div class="big-store-title">${orderData.name}</div>
     
@@ -723,28 +782,110 @@ function renderOrder(){
     
     ${generateFilterHeaderHtml()}
 
-    ${displayProducts.map(p=>`
-      <div class='item'>
-        <div class='prod-info'><div class='prod-name'>${p.spec} ${p.product_name}</div></div>
-        <div class='control-group'>
-          <div class='ctrl-item'><button class='btn-counter' onclick="changeQty('${p.id}',-1)">-</button><span class='ctrl-val' id='q_${p.id}'>${orderData.items[p.id]?.qty||0}</span><button class='btn-counter' onclick="changeQty('${p.id}',1)">+</button></div>
-          <div class='ctrl-item'><button class='btn-counter' onclick="changePrice('${p.id}',-0.1)">-</button><span class='ctrl-val' id='p_${p.id}' style='min-width:34px;'>${orderData.items[p.id]?.price ?? p.default_price}</span><button class='btn-counter' onclick="changePrice('${p.id}',0.1)">+</button><span style="font-size:11px;color:var(--text-muted);margin-left:1px;">元</span></div>
+    ${displayProducts.map(p => {
+      const itData = orderData.items[p.id] || { qty: 0, price: p.default_price, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
+      
+      return `
+        <div class='item'>
+          <div class="item-main-row">
+            <div class='prod-info'>
+              <div class='prod-name'>${p.spec} ${p.product_name}</div>
+              <div style="margin-top: 4px;">
+                <button id="btn_as_${p.id}" class="btn-aftersale-trigger ${itData.return_qty > 0 ? 'active' : ''}" 
+                        onclick="toggleAfterSalePanel('${p.id}')">
+                  🔄 售后回收 ${itData.return_qty > 0 ? `(${itData.return_qty}个)` : ''}
+                </button>
+              </div>
+            </div>
+            
+            <div class='control-group'>
+              <div class='ctrl-item'>
+                <button class='btn-counter' onclick="changeQty('${p.id}',-1)">-</button>
+                <span class='ctrl-val' id='q_${p.id}'>${itData.qty}</span>
+                <button class='btn-counter' onclick="changeQty('${p.id}',1)">+</button>
+              </div>
+              <div class='ctrl-item'>
+                <button class='btn-counter' onclick="changePrice('${p.id}',-0.1)">-</button>
+                <span class='ctrl-val' id='p_${p.id}' style='min-width:34px;'>${itData.price}</span>
+                <button class='btn-counter' onclick="changePrice('${p.id}',0.1)">+</button>
+                <span style="font-size:11px;color:var(--text-muted);margin-left:1px;">元</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="panel_${p.id}" class="aftersale-panel ${itData.showPanel ? '' : 'hide'}">
+            <div class="aftersale-row">
+              <strong>收回旧货数量：</strong>
+              <div class="ctrl-item">
+                <button class='btn-counter' style="background:#fff; border:1px solid #ccc; padding:2px 8px;" onclick="changeReturnQty('${p.id}',-1)">-</button>
+                <span class='ctrl-val' id='rq_${p.id}' style="min-width:30px; font-size:15px; color:#e6a23c;">${itData.return_qty || 0}</span>
+                <button class='btn-counter' style="background:#fff; border:1px solid #ccc; padding:2px 8px;" onclick="changeReturnQty('${p.id}',1)">+</button>
+              </div>
+            </div>
+            <div class="aftersale-row">
+              <strong>旧货状态处理：</strong>
+              <div class="aftersale-options">
+                <label><input type="radio" name="handle_${p.id}" value="RESTORE" ${itData.return_handle !== 'SCRAP' ? 'checked' : ''} onchange="setReturnHandle('${p.id}', 'RESTORE')">🟢 还能卖(加库存)</label>
+                <label><input type="radio" name="handle_${p.id}" value="SCRAP" ${itData.return_handle === 'SCRAP' ? 'checked' : ''} onchange="setReturnHandle('${p.id}', 'SCRAP')">🔴 已过期(不加库存)</label>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    `).join('')}
+      `;
+    }).join('')}
 
     ${displayProducts.length === 0 ? '<div class="sub" style="text-align:center;padding:40px;">⚠️ 该规格下暂未建立任何商品资料</div>' : ''}
     <button class='float-submit' onclick='submitOrder()'>🚀 提交账单</button>
   `;
 }
 
-function changeQty(id,v){
-  if(!orderData.items[id]){ const p = products.find(x=>x.id==id); orderData.items[id] = {qty:0, price:p.default_price}; }
-  orderData.items[id].qty = Math.max(0, (orderData.items[id].qty||0)+v); document.getElementById('q_'+id).innerText = orderData.items[id].qty;
+function initItemState(id) {
+  if(!orderData.items[id]){ 
+    const p = products.find(x => x.id == id); 
+    orderData.items[id] = { qty: 0, price: p.default_price, return_qty: 0, return_handle: 'RESTORE', showPanel: false }; 
+  }
 }
-function changePrice(id,v){
-  if(!orderData.items[id]){ const p = products.find(x=>x.id==id); orderData.items[id] = {qty:0, price:p.default_price}; }
-  orderData.items[id].price = +(orderData.items[id].price + v).toFixed(1); document.getElementById('p_'+id).innerText = orderData.items[id].price;
+
+function toggleAfterSalePanel(id) {
+  initItemState(id);
+  orderData.items[id].showPanel = !orderData.items[id].showPanel;
+  const el = document.getElementById(`panel_${id}`);
+  if(orderData.items[id].showPanel) el.classList.remove('hide'); else el.classList.add('hide');
+}
+
+function changeQty(id, v){
+  initItemState(id);
+  orderData.items[id].qty = Math.max(0, (orderData.items[id].qty || 0) + v); 
+  document.getElementById('q_' + id).innerText = orderData.items[id].qty;
+}
+
+function changePrice(id, v){
+  initItemState(id);
+  orderData.items[id].price = +(orderData.items[id].price + v).toFixed(1); 
+  document.getElementById('p_' + id).innerText = orderData.items[id].price;
+}
+
+// 🟢 新增：控制旧货回收数量
+function changeReturnQty(id, v) {
+  initItemState(id);
+  orderData.items[id].return_qty = Math.max(0, (orderData.items[id].return_qty || 0) + v);
+  document.getElementById('rq_' + id).innerText = orderData.items[id].return_qty;
+  
+  // 同步刷新触发器按钮上的文本
+  const btn = document.getElementById(`btn_as_${id}`);
+  if(orderData.items[id].return_qty > 0) {
+    btn.classList.add('active');
+    btn.innerText = `🔄 售后回收 (${orderData.items[id].return_qty}个)`;
+  } else {
+    btn.classList.remove('active');
+    btn.innerText = `🔄 售后回收`;
+  }
+}
+
+// 🟢 新增：控制旧货是属于良品还是过期损耗
+function setReturnHandle(id, handleType) {
+  initItemState(id);
+  orderData.items[id].return_handle = handleType;
 }
 
 function syncSelectedDate(val){
@@ -754,8 +895,9 @@ function syncSelectedDate(val){
 }
 
 async function submitOrder(){
-  const hasItems = Object.keys(orderData.items).some(id => orderData.items[id].qty > 0); 
-  if(!hasItems){ alert("请至少选择一件商品数量大于0"); return; }
+  // 校验：无论是卖出了东西还是收回了旧货，只要有操作即可提交
+  const hasAction = Object.keys(orderData.items).some(id => orderData.items[id].qty > 0 || orderData.items[id].return_qty > 0); 
+  if(!hasAction){ alert("单据内没有任何有效的销售或售后动作，无法提交"); return; }
 
   const { data: currentStocks } = await client.from('emp_stocks').select('*').eq('employee_code', currentEmployee.code);
   const liveStockMap = {};
@@ -767,45 +909,73 @@ async function submitOrder(){
   const allProdIds = new Set([...Object.keys(orderData.items), ...Object.keys(orderData.oldItemsMap || {})]);
 
   for (let id of allProdIds) {
-    const orderQty = orderData.items[id]?.qty || 0;
-    const oldQty = orderData.oldItemsMap?.[id] || 0; 
+    const item = orderData.items[id] || { qty: 0, return_qty: 0, return_handle: 'RESTORE' };
+    const oldNetImpact = orderData.oldItemsMap?.[id] || 0; 
 
+    // 🟢 极其精密的库存流转计算：
+    // 本次净库存减少量 = 本次开单送出数量 - (如果是良品回收 ? 回收数量 : 0)
+    let currentNetImpact = item.qty - (item.return_handle === 'RESTORE' ? (item.return_qty || 0) : 0);
+    
+    // 多退少补差异 = 当前要减的 - 历史老单已经减掉的
+    const delta = currentNetImpact - oldNetImpact; 
+    
     const currentAvailStock = liveStockMap[id] || 0;
-    const delta = orderQty - oldQty; 
     const finalNewStock = currentAvailStock - delta;
 
     if (finalNewStock < 0) {
       isStockDeficit = true; 
     }
 
-    if (delta !== 0 || orderQty > 0) {
+    // 只要对库存有绝对变动差异，或者当前单据里留有该商品，就同步刷入
+    if (delta !== 0 || item.qty > 0 || item.return_qty > 0) {
       stockUpdates.push({ employee_code: currentEmployee.code, product_id: id, stock_qty: finalNewStock });
     }
   }
 
   if (orderData.id) {
+    // 处于【修改已有历史订单】分支
     const { error: updateOrderErr } = await client.from('orders').update({ order_date: orderData.date }).eq('id', orderData.id);
     if(updateOrderErr){ alert("账单日期更新失败：" + updateOrderErr.message); return; }
 
     const { error: delErr } = await client.from('order_items').delete().eq('order_id', orderData.id);
     if(delErr){ alert("旧账单明细清空失败：" + delErr.message); return; }
 
+    // 重新写入新明细（包含售后数据）
     const items = []; 
     Object.keys(orderData.items).forEach(id => { 
       const it = orderData.items[id]; 
-      if(it.qty > 0){ items.push({ order_id: orderData.id, product_id: id, qty: it.qty, price: it.price }); } 
+      if(it.qty > 0 || it.return_qty > 0){ 
+        items.push({ 
+          order_id: orderData.id, 
+          product_id: id, 
+          qty: it.qty, 
+          price: it.price,
+          return_qty: it.return_qty || 0,
+          return_handle: it.return_handle || 'RESTORE'
+        }); 
+      } 
     });
     const { error: itemErr } = await client.from('order_items').insert(items); 
     if(itemErr){ alert("新明细覆盖写入失败：" + itemErr.message); return; }
 
   } else {
+    // 处于【纯新增开单】分支
     const { data: o, error } = await client.from('orders').insert({ employee_code: currentEmployee.code, atom_code: orderData.atom, order_date: orderData.date }).select().single();
     if(error){ alert("主订单提交失败：" + error.message); return; }
 
     const items = []; 
     Object.keys(orderData.items).forEach(id=>{ 
       const it = orderData.items[id]; 
-      if(it.qty > 0){ items.push({ order_id: o.id, product_id: id, qty: it.qty, price: it.price }); } 
+      if(it.qty > 0 || it.return_qty > 0){ 
+        items.push({ 
+          order_id: o.id, 
+          product_id: id, 
+          qty: it.qty, 
+          price: it.price,
+          return_qty: it.return_qty || 0,
+          return_handle: it.return_handle || 'RESTORE'
+        }); 
+      } 
     });
     const { error: itemErr } = await client.from('order_items').insert(items); 
     if(itemErr){ alert("商品明细提交失败：" + itemErr.message); return; }
@@ -813,11 +983,11 @@ async function submitOrder(){
 
   if (stockUpdates.length > 0) {
     const { error: stockErr } = await client.from('emp_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_id' });
-    if(stockErr) alert("订单已生成，但库存扣减异常：" + stockErr.message);
+    if(stockErr) alert("单据已生成，但库存扣减异常：" + stockErr.message);
   }
 
   if (isStockDeficit) {
-    alert('成功提交，部分商品库存不足，请及时补充库存。');
+    alert('成功提交！注意：由于包含了换货和销售，部分商品当前可用库存已变负，请及时补充！');
   } else {
     alert('成功！');
   }
