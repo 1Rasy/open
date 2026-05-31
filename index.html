@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8" /><title>开单+库存</title><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"><style>:root {
+<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8" /><title>开单+库存管理系统</title><meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"><style>:root {
   --primary: #4A154B;        
   --primary-hover: #360f37; 
   --accent: #ffb81c;        
@@ -6,7 +6,7 @@
   --text-main: #1f1121;     
   --text-muted: #756676;    
   --card-bg: #ffffff;       
-}body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin:0; background: var(--bg-main); color: var(--text-main); padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }.card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); position: relative;}.top-action-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }.back-btn { display: inline-flex; align-items: center; justify-content: center; background: #f4f2f5; color: var(--text-main); padding: 10px 18px; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid #e2dde3; transition: all 0.2s; }.back-btn:active { background: #e2dde3; transform: scale(0.97); }.back-btn::before { content: "←"; margin-right: 6px; font-weight: bold; font-size: 16px; }.editing-badge { font-size:12px; color:#e6a23c; background:#fff7eb; padding:6px 12px; border-radius:14px; font-weight:bold; border: 1px solid #f5dab1; }#list { width: 100%; }.big-store-title { font-size: 22px; font-weight: 800; color: #111827; margin: 4px 0 14px 0; letter-spacing: -0.5px; }.emp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 4px 0; }.emp-card { background: #faf9fa; border: 1px solid #eeeade; border-left: 4px solid var(--primary); border-radius: 8px; padding: 14px 12px; cursor: pointer; transition: all 0.15s ease; box-sizing: border-box; }.emp-card:active { background: #f3e2f5; transform: scale(0.97); }.store-container { padding-right: 24px; box-sizing: border-box; }.letter-group-title { background: #f4f2f5; color: var(--primary); font-weight: 700; font-size: 14px; padding: 4px 8px; margin: 12px 0 6px 0; border-radius: 4px; }.item { padding:14px 4px; border-bottom:1px solid #f4f2f5; box-sizing: border-box; width: 100%; }.item-main-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.prod-info { flex: 1; min-width: 0; }.prod-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }.control-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; max-width: 75%; }.picker-wrapper { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; color: var(--text-muted); }.picker-wrapper span.label-txt { font-weight: 500; color: #665c67; }.picker-wrapper span.unit-txt { font-weight: 600; color: var(--text-main); font-size: 13px; }.ios-picker { background: #f4f2f5; color: var(--text-main); border: 1px solid #dcd6dd; border-radius: 6px; padding: 6px 6px; font-size: 14px; font-weight: 700; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; min-width: 40px; }.ios-picker:focus { border-color: var(--primary); background: #fff; }.aftersale-panel { background: #fdfaf6; border: 1px dashed #f5dab1; border-radius: 8px; padding: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }.aftersale-row-picks { display: flex; align-items: center; gap: 12px; width: 100%; border-bottom: 1px dashed #faebd7; padding-bottom: 8px; }.aftersale-options { display: flex; gap: 14px; margin-top: 2px; }.aftersale-options label { display: flex; align-items: center; gap: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }.store-top-gates { display: flex; gap: 10px; margin-bottom: 16px; }.btn-gate-half { flex: 1; color: #fff; padding: 14px 8px; border-radius: 10px; font-size: 14px; font-weight: 700; text-align: center; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 4px 10px rgba(74,21,75,0.12); }.btn-gate-stock { background: linear-gradient(135deg, var(--primary), #6b266c); }.btn-gate-report { background: linear-gradient(135deg, #1890ff, #0050b3); }.btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center; border:none; }.smallbtn { background:#f4f2f5; color:var(--text-main); border: 1px solid #e2dde3; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500; cursor: pointer; }.date-picker-wrapper { position: relative; display: inline-block; }.real-date-input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }.search-wrapper { position: relative; margin: 4px 0 12px 0; width: 100%; box-sizing: border-box; }.search-wrapper input { width:100%; padding:12px 40px 12px 12px; margin:0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa; }.search-wrapper input:focus { outline: none; border-color: var(--primary); background: #fff; }.search-clear-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #e2dde3; color: #756676; border-radius: 50%; text-align: center; line-height: 20px; font-size: 12px; cursor: pointer; font-weight: bold; display: none; z-index: 5; }.search-clear-btn:active { background: #d0c9d2; }.btn-aftersale-trigger { background: #fff; color: #e6a23c; border: 1px solid #f5dab1; font-weight: bold; font-size: 11px; padding: 4px 6px; border-radius: 4px; margin-top: 4px; }.btn-aftersale-trigger.active { background: #fdf6ec; border-color: #e6a23c; }.brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px 0; }.brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 7px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: 600; border: 1px solid transparent; }.brand-badge.active { background: #fbf4fc; color: var(--primary); border: 1px solid #eecbf5; }.spec-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px 0; padding: 6px 0; border-bottom: 1px dashed #e2dde3; }.spec-badge { background: #ffffff; color: #665c67; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid #e2dde3; font-weight: 500; }.spec-badge.active { background: var(--primary); color: #ffffff; border-color: var(--primary); }.brand { font-weight:700; margin-top:10px; padding: 2px 0; color: var(--primary); font-size: 15px; display: flex; align-items: center; gap: 4px; }.sub { font-size:13px; color: var(--text-muted); margin-top: 2px; }.hide { display:none !important; }.history-item { background: #faf9fa; padding:14px 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #eeeade; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }.float-submit { position: fixed; right: 20px; bottom: 24px; z-index: 99; background: var(--primary); color: #fff; border: none; padding: 14px 26px; border-radius: 50px; font-size: 16px; font-weight: 700; box-shadow: 0 8px 16px rgba(74,21,75,0.3); }.stock-row { display: flex; flex-direction: column; width: 100%; background: #faf9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; box-sizing: border-box; }.stock-input-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }.stock-dir-select { padding: 5px 8px; background: #fff; border: 1px solid var(--primary); color: var(--primary); border-radius: 6px; font-size: 13px; font-weight: bold; outline: none; cursor: pointer; }.alphabet-sidebar { position: fixed; right: 16px; top: 140px; bottom: 100px; width: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 90; background: rgba(255, 255, 255, 0.85); border-radius: 12px; box-shadow: 0 2px 8px rgba(74,21,75,0.08); border: 1px solid #eeeade; user-select: none; -webkit-user-select: none; }.amount-summary-banner { background: #fdfdfd; border: 1px solid #ebdfee; border-left: 5px solid var(--primary); padding: 10px 12px; border-radius: 6px; margin: 10px 0; font-size: 14px; color: #2b1d2c; }.amount-summary-banner strong { font-size: 15px; }.detail-grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin-top: 4px; font-size: 13px; color: var(--text-muted); line-height: 1.4; }.detail-grid-item { display: flex; justify-content: space-between; align-items: center; }</style></head><body>
+}body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin:0; background: var(--bg-main); color: var(--text-main); padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }.card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); position: relative;}.top-action-bar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }.back-btn { display: inline-flex; align-items: center; justify-content: center; background: #f4f2f5; color: var(--text-main); padding: 10px 18px; border-radius: 20px; font-size: 14px; font-weight: 600; cursor: pointer; border: 1px solid #e2dde3; transition: all 0.2s; }.back-btn:active { background: #e2dde3; transform: scale(0.97); }.editing-badge { font-size:12px; color:#e6a23c; background:#fff7eb; padding:6px 12px; border-radius:14px; font-weight:bold; border: 1px solid #f5dab1; }#list { width: 100%; }.big-store-title { font-size: 22px; font-weight: 800; color: #111827; margin: 4px 0 14px 0; letter-spacing: -0.5px; }.emp-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; padding: 4px 0; }.emp-card { background: #faf9fa; border: 1px solid #eeeade; border-left: 4px solid var(--primary); border-radius: 8px; padding: 14px 12px; cursor: pointer; transition: all 0.15s ease; box-sizing: border-box; }.emp-card:active { background: #f3e2f5; transform: scale(0.97); }.store-container { padding-right: 24px; box-sizing: border-box; }.letter-group-title { background: #f4f2f5; color: var(--primary); font-weight: 700; font-size: 14px; padding: 4px 8px; margin: 12px 0 6px 0; border-radius: 4px; }.item { padding:14px 4px; border-bottom:1px solid #f4f2f5; box-sizing: border-box; width: 100%; }.item-main-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }.prod-info { flex: 1; min-width: 0; }.prod-name { font-size: 15px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }.control-group { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; max-width: 75%; }.picker-wrapper { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; color: var(--text-muted); }.picker-wrapper span.label-txt { font-weight: 500; color: #665c67; }.picker-wrapper span.unit-txt { font-weight: 600; color: var(--text-main); font-size: 13px; }.ios-picker { background: #f4f2f5; color: var(--text-main); border: 1px solid #dcd6dd; border-radius: 6px; padding: 6px 6px; font-size: 14px; font-weight: 700; outline: none; cursor: pointer; -webkit-appearance: none; appearance: none; text-align: center; min-width: 40px; }.ios-picker:focus { border-color: var(--primary); background: #fff; }.aftersale-panel { background: #fdfaf6; border: 1px dashed #f5dab1; border-radius: 8px; padding: 12px; margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }.aftersale-row-picks { display: flex; align-items: center; gap: 12px; width: 100%; border-bottom: 1px dashed #faebd7; padding-bottom: 8px; }.aftersale-options { display: flex; gap: 14px; margin-top: 2px; }.aftersale-options label { display: flex; align-items: center; gap: 4px; font-weight: 600; cursor: pointer; font-size: 13px; }.store-top-gates { display: flex; gap: 10px; margin-bottom: 16px; }.btn-gate-half { flex: 1; color: #fff; padding: 14px 8px; border-radius: 10px; font-size: 14px; font-weight: 700; text-align: center; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px; box-shadow: 0 4px 10px rgba(74,21,75,0.12); }.btn-gate-stock { background: linear-gradient(135deg, var(--primary), #6b266c); }.btn-gate-report { background: linear-gradient(135deg, #1890ff, #0050b3); }.btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center; border:none; }.smallbtn { background:#f4f2f5; color:var(--text-main); border: 1px solid #e2dde3; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500; cursor: pointer; }.date-picker-wrapper { position: relative; display: inline-block; }.real-date-input { position: absolute; left: 0; top: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }.search-wrapper { position: relative; margin: 4px 0 12px 0; width: 100%; box-sizing: border-box; }.search-wrapper input { width:100%; padding:12px 40px 12px 12px; margin:0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa; }.search-wrapper input:focus { outline: none; border-color: var(--primary); background: #fff; }.search-clear-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); width: 22px; height: 22px; background: #e2dde3; color: #756676; border-radius: 50%; text-align: center; line-height: 20px; font-size: 12px; cursor: pointer; font-weight: bold; display: none; z-index: 5; }.search-clear-btn:active { background: #d0c9d2; }.btn-aftersale-trigger { background: #fff; color: #e6a23c; border: 1px solid #f5dab1; font-weight: bold; font-size: 11px; padding: 4px 6px; border-radius: 4px; margin-top: 4px; }.btn-aftersale-trigger.active { background: #fdf6ec; border-color: #e6a23c; }.brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 6px 0; }.brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 7px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; font-weight: 600; border: 1px solid transparent; }.brand-badge.active { background: #fbf4fc; color: var(--primary); border: 1px solid #eecbf5; }.spec-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 12px 0; padding: 6px 0; border-bottom: 1px dashed #e2dde3; }.spec-badge { background: #ffffff; color: #665c67; padding: 4px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; border: 1px solid #e2dde3; font-weight: 500; }.spec-badge.active { background: var(--primary); color: #ffffff; border-color: var(--primary); }.brand { font-weight:700; margin-top:10px; padding: 2px 0; color: var(--primary); font-size: 15px; display: flex; align-items: center; gap: 4px; }.sub { font-size:13px; color: var(--text-muted); margin-top: 2px; }.hide { display:none !important; }.history-item { background: #faf9fa; padding:14px 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #eeeade; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }.float-submit { position: fixed; right: 20px; bottom: 24px; z-index: 99; background: var(--primary); color: #fff; border: none; padding: 14px 26px; border-radius: 50px; font-size: 16px; font-weight: 700; box-shadow: 0 8px 16px rgba(74,21,75,0.3); }.stock-row { display: flex; flex-direction: column; width: 100%; background: #faf9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; box-sizing: border-box; }.stock-input-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }.btn-toggle-dir { padding: 6px 12px; border: 1px solid var(--primary); border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer; transition: all 0.15s ease; }.btn-toggle-dir.plus { background: #fff4fc; color: var(--primary); }.btn-toggle-dir.minus { background: #fff0f0; color: #d93025; border-color: #d93025; }.alphabet-sidebar { position: fixed; right: 16px; top: 140px; bottom: 100px; width: 24px; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 90; background: rgba(255, 255, 255, 0.85); border-radius: 12px; box-shadow: 0 2px 8px rgba(74,21,75,0.08); border: 1px solid #eeeade; user-select: none; -webkit-user-select: none; }.amount-summary-banner { background: #fdfdfd; border: 1px solid #ebdfee; border-left: 5px solid var(--primary); padding: 10px 12px; border-radius: 6px; margin: 10px 0; font-size: 14px; color: #2b1d2c; }.amount-summary-banner strong { font-size: 15px; }.detail-grid-container { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin-top: 4px; font-size: 13px; color: var(--text-muted); line-height: 1.4; }.detail-grid-item { display: flex; justify-content: space-between; align-items: center; }</style></head><body>
 
 <div class="card">
   <div id="searchBlock" class="search-wrapper">
@@ -48,18 +48,15 @@ function isSpecialSpecOreo(productObj) {
   return productObj.spec.includes("3片装");
 }
 
-// 核心重构1：动态多级单位换算，支持隐藏中盒
 function formatQtyToUnits(totalPcs, specCase, specBox) {
   let displayCases = Math.floor(totalPcs / specCase);
   let remPcs = totalPcs % specCase;
   
   if (specBox > 0) {
-    // 存在中盒：件、盒、个
     let displayBoxes = Math.floor(remPcs / specBox);
     let displayPcs = remPcs % specBox;
     return `${displayCases}件 ${displayBoxes}盒 ${displayPcs}个`;
   } else {
-    // 无中盒：直装散件，仅展现 件、个
     return `${displayCases}件 ${remPcs}个`;
   }
 }
@@ -90,7 +87,6 @@ function getLiveRowAmounts(productObj, qty, livePrice, giftQty, returnQty, retur
       restoreAmount = returnQty * liveSingleBagPrice; 
     }
   } else {
-    // 针对常规商品，若为散包计价，如果是整箱订货，开单数 qty 代表箱/个（由前端转换逻辑决定，在此保持基础乘积）
     saleAmount = qty * livePrice;
     giftAmount = giftQty * defaultPrice; 
     if (returnHandle === 'SCRAP') {
@@ -119,7 +115,7 @@ async function init(){
     products = (p.data || []).map(x => ({ 
       ...x, 
       spec: (x.spec || '常规款').trim(),
-      pcs_per_box: parseInt(x.pcs_per_box) || 0 // 确保类型准确
+      pcs_per_box: parseInt(x.pcs_per_box) || 0
     }));
     renderEmployees();
   } catch (err) {
@@ -358,19 +354,38 @@ function makePurePriceOptionsHtml(centerPrice, stepPlaces, currentSelected) {
   return html;
 }
 
-// 核心重构2：库存管理组件按 pcs_per_box 条件动态隐藏“盒”
+// 优化点：切换增减状态逻辑（直接无缝互斥切换）
+function toggleStockDirection(prodId) {
+  if(!stockData.additions[prodId]) stockData.additions[prodId] = { dir: 'plus', cases: 0, boxes: 0, pcs: 0 };
+  const currentDir = stockData.additions[prodId].dir || 'plus';
+  const nextDir = currentDir === 'plus' ? 'minus' : 'plus';
+  stockData.additions[prodId].dir = nextDir;
+  
+  const btn = document.getElementById(`dir_btn_${prodId}`);
+  if(btn) {
+    if(nextDir === 'plus') {
+      btn.className = "btn-toggle-dir plus";
+      btn.innerText = "增加 ➕";
+    } else {
+      btn.className = "btn-toggle-dir minus";
+      btn.innerText = "减少 ➖";
+    }
+  }
+}
+
+// 核心优化 1 & 3：头顶增加了“库存表”大标题，且增减库存改成了按钮直接点击切换切换
 function renderStockPage(){
   STATE = 'STOCK';
   document.getElementById('back').classList.remove('hide');
   const displayProducts = products.filter(p => p.brand === currentSelectedBrand && (currentSelectedSpec === "ALL" ? true : p.spec === currentSelectedSpec));
 
   document.getElementById('list').innerHTML = `
-    <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px;'>🏢 主体：${currentEmployee.name}</div>
+    <div class="big-store-title">📦 库存表</div>
+    <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px; margin-bottom: 6px;'>🏢 主体：${currentEmployee.name}</div>
     ${generateFilterHeaderHtml()}
     ${displayProducts.map(p => {
-      const isOreoSpecial = isSpecialSpecOreo(p);
       const specCase = p.pcs_per_case || 24; 
-      const specBox = p.pcs_per_box || 0; // 0代表无中盒
+      const specBox = p.pcs_per_box || 0; 
       
       const totalPcs = stockData.currentStockMap[p.id] || 0; 
       const formattedStockText = formatQtyToUnits(totalPcs, specCase, specBox);
@@ -387,10 +402,10 @@ function renderStockPage(){
             当前库存: <strong>${formattedStockText}</strong>
           </div>
           <div class="stock-input-group">
-            <select class="stock-dir-select" onchange="updateStockInput('${p.id}', 'dir', this.value)">
-              <option value="plus" ${currentDir === 'plus' ? 'selected' : ''}>增加 ➕</option>
-              <option value="minus" ${currentDir === 'minus' ? 'selected' : ''}>减少 ➖</option>
-            </select>
+            
+            <button id="dir_btn_${p.id}" class="btn-toggle-dir ${currentDir === 'plus' ? 'plus' : 'minus'}" onclick="toggleStockDirection('${p.id}')">
+              ${currentDir === 'plus' ? '增加 ➕' : '减少 ➖'}
+            </button>
             
             <div class="picker-wrapper">
               <select class="ios-picker" onchange="updateStockInput('${p.id}', 'cases', this.value)">${makePureQtyOptionsHtml(50, curC)}</select><span class="unit-txt">件</span>
@@ -407,16 +422,16 @@ function renderStockPage(){
         </div>
       `;
     }).join('')}
-    <button class='float-submit' onclick='submitStock()'>💾 更新库存</button>
+    <button id="stockSubmitBtn" class='float-submit' onclick='submitStock()'>💾 更新库存</button>
   `;
 }
 
 function updateStockInput(prodId, type, val){
   if(!stockData.additions[prodId]) stockData.additions[prodId] = { dir: 'plus', cases: 0, boxes: 0, pcs: 0 };
-  if(type === 'dir') stockData.additions[prodId].dir = val;
-  else stockData.additions[prodId][type] = parseInt(val) || 0;
+  stockData.additions[prodId][type] = parseInt(val) || 0;
 }
 
+// 核心优化 2：提交时追加了“更新中...”状态拦截器
 async function submitStock(){
   const addIds = Object.keys(stockData.additions);
   let hasData = false; const updates = []; 
@@ -440,8 +455,27 @@ async function submitStock(){
     }
   }
   if(!hasData){ alert("请输入变更量！"); return; }
-  await client.from('emp_stocks').upsert(updates, { onConflict: 'employee_code,product_id' });
-  openStockManagement();
+  
+  // 变更按钮为 Loading 状态，防止连击
+  const submitBtn = document.getElementById('stockSubmitBtn');
+  if(submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = "⏳ 更新中...";
+    submitBtn.style.background = "#756676";
+  }
+
+  try {
+    await client.from('emp_stocks').upsert(updates, { onConflict: 'employee_code,product_id' });
+    openStockManagement();
+  } catch (err) {
+    console.error(err);
+    alert("❌ 库存更新失败，请重试");
+    if(submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = "💾 更新库存";
+      submitBtn.style.background = "var(--primary)";
+    }
+  }
 }
 
 async function openStoreHistory(atom, name) {
@@ -824,7 +858,6 @@ function calculateLiveOrderAmounts() {
   `;
 }
 
-// 核心重构3：开单选择区域按 pcs_per_box 条件动态隐藏“盒”
 function renderOrder(){
   STATE = 'ORDER';
   const displayProducts = products.filter(p => p.brand === currentSelectedBrand && (currentSelectedSpec === "ALL" ? true : p.spec === currentSelectedSpec));
@@ -839,12 +872,10 @@ function renderOrder(){
     ${displayProducts.map(p => {
       const isOreoSpecial = isSpecialSpecOreo(p);
       const defaultPriceVal = isOreoSpecial ? 17.5 : (p.default_price || 15);
-      const specBox = p.pcs_per_box || 0; // 0代表无中盒
       
       const itData = orderData.items[p.id] || { qty: 0, price: defaultPriceVal, gift_qty: 0, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
       const stepPlaces = getPriceDecimalPlaces(p.id);
       
-      // 无中盒时，主开单栏的单位直接采用“箱”或“个”
       const saleUnitText = isOreoSpecial ? "盒" : "个";
 
       return `
