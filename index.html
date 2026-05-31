@@ -20,7 +20,6 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .header { padding:16px 20px; font-size:20px; font-weight: 700; background: var(--card-bg); position:sticky; top:0; z-index:10; border-bottom:2px solid var(--primary); box-shadow: 0 2px 8px rgba(74,21,75,0.08); text-align: center;}
 .card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); }
 
-/* 返回按钮 */
 .back-btn {
   display: inline-flex; align-items: center; justify-content: center;
   background: #f4f2f5; color: var(--text-main); padding: 10px 18px; border-radius: 20px;
@@ -29,11 +28,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 .back-btn:active { background: #e2dde3; transform: scale(0.97); }
 .back-btn::before { content: "←"; margin-right: 6px; font-weight: bold; font-size: 16px; }
 
-/* 列表条目 */
 .item { padding:14px 4px; border-bottom:1px solid #f4f2f5; display: flex; align-items: center; justify-content: flex-start; gap: 15px; }
 .item:last-child { border-bottom: none; }
 
-/* 按钮 */
 .btn-stock-gate { background: linear-gradient(135deg, var(--primary), #6b266c); color: #fff; padding: 14px; width: 100%; border-radius: 10px; font-size: 15px; font-weight: 700; margin-bottom: 15px; text-align: center; border: none; cursor: pointer; box-shadow: 0 4px 10px rgba(74,21,75,0.15);}
 .btn-new-order { background: var(--primary); color:#fff; padding:12px; width:100%; border-radius:8px; font-size: 16px; font-weight:600; margin-bottom:15px; text-align:center;}
 .smallbtn { background:#f4f2f5; color:var(--text-main); border: 1px solid #e2dde3; padding:5px 10px; border-radius:6px; font-size: 13px; font-weight: 500;}
@@ -41,11 +38,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial
 input { width:100%; padding:12px; margin:4px 0 12px 0; border: 1px solid #dcd6dd; border-radius: 8px; box-sizing:border-box; font-size:16px; background: #faf9fa;}
 input:focus { outline: none; border-color: var(--primary); background: #fff;}
 
-/* 计数器 */
 .btn-counter { background:#fbf4fc; color: var(--primary); font-weight: 700; padding: 4px 12px; border-radius: 6px; font-size: 16px; border:none;}
 .btn-counter:active { background: #f3e2f5; }
 
-/* 品牌导航 */
 .brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 8px 0; }
 .brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 8px 16px; border-radius: 20px; font-size: 14px; cursor: pointer; font-weight: 600; }
 .brand-badge.active { background: #fbf4fc; color: var(--primary); border: 1px solid #eecbf5; }
@@ -63,7 +58,6 @@ input:focus { outline: none; border-color: var(--primary); background: #fff;}
 .history-item { background: #faf9fa; padding:14px 16px; margin-bottom: 10px; border-radius: 8px; border: 1px solid #eeeade; display: flex; justify-content: space-between; align-items: center; }
 .float-submit { position: fixed; right: 20px; bottom: 24px; z-index: 99; background: var(--primary); color: #fff; border: none; padding: 14px 26px; border-radius: 50px; font-size: 16px; font-weight: 700; box-shadow: 0 8px 16px rgba(74,21,75,0.3); }
 
-/* 库存输入专属样式 */
 .stock-row { display: flex; flex-direction: column; width: 100%; background: #faf9fa; padding: 12px; border-radius: 8px; border: 1px solid #eee; margin-bottom: 10px; box-sizing: border-box;}
 .stock-input-group { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 8px; align-items: center; }
 .stock-input-box { display: flex; align-items: center; gap: 4px; font-size: 13px; color: var(--text-muted); }
@@ -102,7 +96,6 @@ let stockData = {};
 
 async function init(){
   const e = await client.from('employees').select('*');
-  // 🔴 核心改动：顺便拉取新增加的 pcs_per_box 字段
   const p = await client.from('products').select('*');
 
   employees = e.data || [];
@@ -191,7 +184,7 @@ async function openStockManagement(){
   stockData = {
     emp_code: currentEmployee.code,
     currentStockMap: stockMap,
-    additions: {} // 结构：{ product_id: { cases: 0, boxes: 0, pcs: 0 } }
+    additions: {} 
   };
 
   renderStockPage();
@@ -199,12 +192,8 @@ async function openStockManagement(){
 
 function renderStockPage(){
   STATE = 'STOCK';
-
   const grouped = {};
-  products.forEach(p=>{
-    if(!grouped[p.brand]) grouped[p.brand]=[];
-    grouped[p.brand].push(p);
-  });
+  products.forEach(p=>{ if(!grouped[p.brand]) grouped[p.brand]=[]; grouped[p.brand].push(p); });
 
   const brands = Object.keys(grouped);
   if (!currentSelectedBrand && brands.length > 0) currentSelectedBrand = brands[0];
@@ -212,81 +201,42 @@ function renderStockPage(){
 
   document.getElementById('list').innerHTML = `
     <div class='sub' style='font-weight:700;color:var(--primary); font-size:15px;'>🏢 账户主体：${currentEmployee.name} 的随身仓库</div>
-    <div class='brand-nav'>
-      ${brands.map(b => `<div class="brand-badge ${b === currentSelectedBrand ? 'active' : ''}" onclick="selectBrand('${b}')">${b}</div>`).join('')}
-    </div>
+    <div class='brand-nav'>${brands.map(b => `<div class="brand-badge ${b === currentSelectedBrand ? 'active' : ''}" onclick="selectBrand('${b}')">${b}</div>`).join('')}</div>
     <div class='brand'>✨ 品牌仓：${currentSelectedBrand}</div>
 
     ${displayProducts.map(p => {
-      const specCase = p.pcs_per_case || 24; // 每整件多少个 (炫迈是36)
-      const specBox = p.pcs_per_box || 0;    // 每中盒多少个 (炫迈是9，奥利奥是0)
-      
+      const specCase = p.pcs_per_case || 24; 
+      const specBox = p.pcs_per_box || 0;    
       const totalPcs = stockData.currentStockMap[p.id] || 0; 
 
-      // 🔴 三级多包装核心换算算法
-      let displayCases = 0;
+      let displayCases = Math.floor(totalPcs / specCase);
       let displayBoxes = 0;
-      let displayPcs = 0;
+      let displayPcs = totalPcs % specCase;
 
       if (specBox > 0) {
-        // 说明有中盒层级（如炫迈：1件=4中盒=36个）
-        displayCases = Math.floor(totalPcs / specCase);
         let remPcs = totalPcs % specCase;
         displayBoxes = Math.floor(remPcs / specBox);
         displayPcs = remPcs % specBox;
-      } else {
-        // 普通两级换算（如奥利奥：1件=24个）
-        displayCases = Math.floor(totalPcs / specCase);
-        displayPcs = totalPcs % specCase;
       }
 
-      // 获取暂存输入
       const inputCases = stockData.additions[p.id]?.cases || '';
       const inputBoxes = stockData.additions[p.id]?.boxes || '';
       const inputPcs = stockData.additions[p.id]?.pcs || '';
 
       return `
         <div class="stock-row">
-          <div style="font-weight:600; font-size:15px; color:var(--primary);">
-            ${p.spec || ''}${p.product_name}
-            <span class="sub" style="font-size:12px; font-weight:normal;">
-              (${specBox > 0 ? `1件=${Math.round(specCase/specBox)}中盒×${specBox}个` : `1件=${specCase}个`})
-            </span>
-          </div>
-          
-          <!-- 实时当前实存库存展示 -->
+          <div style="font-weight:600; font-size:15px; color:var(--primary);">${p.spec || ''}${p.product_name} <span class="sub" style="font-size:12px; font-weight:normal;">(${specBox > 0 ? `1件=${Math.round(specCase/specBox)}中盒×${specBox}个` : `1件=${specCase}个`})</span></div>
           <div style="font-size:13px; margin-top:6px; color:#333; background:#f0ebf1; padding:6px 10px; border-radius:6px;">
-            当前库存: 
-            <strong>${displayCases}</strong> 件 
-            ${specBox > 0 ? `<strong>${displayBoxes}</strong> 中盒 ` : ''}
-            <strong>${displayPcs}</strong> 个
-            <span class="sub"> (共${totalPcs}个)</span>
+            当前库存: <strong>${displayCases}</strong> 件 ${specBox > 0 ? `<strong>${displayBoxes}</strong> 中盒 ` : ''}<strong>${displayPcs}</strong> 个<span class="sub"> (共${totalPcs}个)</span>
           </div>
-          
-          <!-- 动态输入框：自动识别是否展示“中盒”输入框 -->
           <div class="stock-input-group">
-            <div class="stock-input-box">
-              <span>➕</span>
-              <input type="number" placeholder="0" value="${inputCases}" oninput="updateStockInput('${p.id}', 'cases', this.value)">
-              <span>件</span>
-            </div>
-            
-            ${specBox > 0 ? `
-            <div class="stock-input-box">
-              <input type="number" placeholder="0" value="${inputBoxes}" oninput="updateStockInput('${p.id}', 'boxes', this.value)">
-              <span>中盒</span>
-            </div>
-            ` : ''}
-
-            <div class="stock-input-box">
-              <input type="number" placeholder="0" value="${inputPcs}" oninput="updateStockInput('${p.id}', 'pcs', this.value)">
-              <span>个</span>
-            </div>
+            <div class="stock-input-box"><span>➕</span><input type="number" placeholder="0" value="${inputCases}" oninput="updateStockInput('${p.id}', 'cases', this.value)"><span>件</span></div>
+            ${specBox > 0 ? `<div class="stock-input-box"><input type="number" placeholder="0" value="${inputBoxes}" oninput="updateStockInput('${p.id}', 'boxes', this.value)"><span>中盒</span></div>` : ''}
+            <div class="stock-input-box"><input type="number" placeholder="0" value="${inputPcs}" oninput="updateStockInput('${p.id}', 'pcs', this.value)"><span>个</span></div>
           </div>
         </div>
       `;
     }).join('')}
-
     <button class='float-submit' onclick='submitStock()'>💾 保存并更新库存</button>
   `;
 }
@@ -296,7 +246,6 @@ function updateStockInput(prodId, type, val){
   stockData.additions[prodId][type] = parseInt(val) || 0;
 }
 
-// 提交增量库存
 async function submitStock(){
   const addIds = Object.keys(stockData.additions);
   let hasData = false;
@@ -311,35 +260,22 @@ async function submitStock(){
     const addedBoxes = stockData.additions[id].boxes || 0;
     const addedPcs = stockData.additions[id].pcs || 0;
 
-    // 🔴 智能换算公式：将填入的 件、中盒、个 统一打碎换算成最终纯“个”数
-    let increment = 0;
-    if (specBox > 0) {
-      increment = (addedCases * specCase) + (addedBoxes * specBox) + addedPcs;
-    } else {
-      increment = (addedCases * specCase) + addedPcs;
-    }
+    let increment = specBox > 0 ? (addedCases * specCase) + (addedBoxes * specBox) + addedPcs : (addedCases * specCase) + addedPcs;
 
     if(increment > 0){
       hasData = true;
-      const currentTotal = stockData.currentStockMap[id] || 0;
-      updates.push({
-        employee_code: stockData.emp_code,
-        product_id: id,
-        stock_qty: currentTotal + increment
-      });
+      updates.push({ employee_code: stockData.emp_code, product_id: id, stock_qty: (stockData.currentStockMap[id] || 0) + increment });
     }
   }
 
-  if(!hasData){ alert("请至少输入需要增加的件数、中盒数或个数！"); return; }
-
+  if(!hasData){ alert("请输入需要增加的库存量！"); return; }
   const { error } = await client.from('emp_stocks').upsert(updates, { onConflict: 'employee_code,product_id' });
   if(error){ alert("库存更新失败：" + error.message); return; }
 
-  alert("🌟 仓库库存同步成功！已自动完成【件-中盒-散件】深度多级换算。");
+  alert("🌟 仓库库存同步成功！");
   openEmployee(currentEmployee.code, currentEmployee.name);
 }
 
-// 后面为开单和历史记录逻辑，保持不变
 async function openStoreHistory(atom, name) {
   STATE = 'HISTORY'; currentStore = { atom, name };
   document.getElementById('back').classList.remove('hide'); document.getElementById('search').classList.add('hide'); 
@@ -352,9 +288,7 @@ function renderHistory(){
   STATE = 'HISTORY';
   document.getElementById('list').innerHTML = `
     <div class='sub' style='font-weight:600;color:#000;'>🏪 门店：${currentStore.name}</div>
-    <div style="margin: 14px 0;">
-       <button class="btn-new-order" onclick="openOrder('${currentStore.atom}','${currentStore.name}')">＋ 新增单据</button>
-    </div>
+    <div style="margin: 14px 0;"><button class="btn-new-order" onclick="openOrder('${currentStore.atom}','${currentStore.name}')">＋ 新增单据</button></div>
     <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:var(--text-muted);">📂 历史账单明细 (${historyOrders.length})</div>
     ${historyOrders.length === 0 ? `<div class="sub" style="text-align:center;padding:40px;color:#9ca3af;">该门店暂无历史开单数据</div>` : 
       historyOrders.map(o => `
@@ -413,13 +347,58 @@ function changePrice(id,v){
 }
 function editDate(){ const d = prompt('修改日期', orderData.date); if(d) { orderData.date = d; document.getElementById('dateText').innerText = d; } }
 
+// 🔴 【核心重构】：开单伴随库存自动计算扣减
 async function submitOrder(){
-  const hasItems = Object.keys(orderData.items).some(id => orderData.items[id].qty > 0); if(!hasItems){ alert("请至少选择一件商品数量大于0"); return; }
+  const hasItems = Object.keys(orderData.items).some(id => orderData.items[id].qty > 0); 
+  if(!hasItems){ alert("请至少选择一件商品数量大于0"); return; }
+
+  // 1. 拦截检查：先拉取当前业务员的最新的实时仓库库存余额
+  const { data: currentStocks } = await client.from('emp_stocks').select('*').eq('employee_code', currentEmployee.code);
+  const liveStockMap = {};
+  (currentStocks || []).forEach(st => { liveStockMap[st.product_id] = st.stock_qty || 0; });
+
+  // 2. 校验库存余额是否充足，防止“负库存爆仓”
+  const stockUpdates = [];
+  for (let id of Object.keys(orderData.items)) {
+    const orderQty = orderData.items[id].qty || 0;
+    if (orderQty > 0) {
+      const p = products.find(x => x.id == id);
+      const currentAvailStock = liveStockMap[id] || 0;
+
+      if (orderQty > currentAvailStock) {
+        alert(`❌ 提交失败：商品 [${p.spec || ''}${p.product_name}] 库存不足！\n当前仓库剩余: ${currentAvailStock} 个，申请订购: ${orderQty} 个。\n请先去库存管理中补货。`);
+        return; 
+      }
+      // 算出扣减后的最新库存
+      stockUpdates.push({
+        employee_code: currentEmployee.code,
+        product_id: id,
+        stock_qty: currentAvailStock - orderQty
+      });
+    }
+  }
+
+  // 3. 验证通过：正式写入订单主表
   const { data: o, error } = await client.from('orders').insert({ employee_code: currentEmployee.code, atom_code: orderData.atom, order_date: orderData.date }).select().single();
   if(error){ alert("主订单提交失败：" + error.message); return; }
-  const items = []; Object.keys(orderData.items).forEach(id=>{ const it = orderData.items[id]; if(it.qty > 0){ items.push({ order_id: o.id, product_id: id, qty: it.qty, price: it.price }); } });
-  if(items.length > 0){ const { error: itemErr } = await client.from('order_items').insert(items); if(itemErr){ alert("商品明细提交失败：" + itemErr.message); return; } }
-  alert('订单提交成功！'); openStoreHistory(currentStore.atom, currentStore.name);
+
+  // 4. 写入订单商品明细表
+  const items = []; 
+  Object.keys(orderData.items).forEach(id=>{ 
+    const it = orderData.items[id]; 
+    if(it.qty > 0){ items.push({ order_id: o.id, product_id: id, qty: it.qty, price: it.price }); } 
+  });
+  const { error: itemErr } = await client.from('order_items').insert(items); 
+  if(itemErr){ alert("商品明细提交失败：" + itemErr.message); return; }
+
+  // 5. 🔴 扣减数据库库存数据
+  const { error: stockErr } = await client.from('emp_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_id' });
+  if(stockErr) {
+    alert("订单已生成，但云仓库存扣减遇到异常：" + stockErr.message);
+  }
+
+  alert('🎉 订单提交成功！库存已实时扣减完毕。'); 
+  openStoreHistory(currentStore.atom, currentStore.name);
 }
 
 function goBack(){
