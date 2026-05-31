@@ -128,11 +128,17 @@ function parseReturnHandleText(val) {
 }
 
 async function init(){
-  const e = await client.from('employees').select('*');
-  const p = await client.from('products').select('*');
-  employees = e.data || [];
-  products = (p.data || []).map(x => ({ ...x, spec: (x.spec || '常规款').trim() }));
-  renderEmployees();
+  try {
+    document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">⚡ 正在连接数据中心...</div>';
+    const e = await client.from('employees').select('*');
+    const p = await client.from('products').select('*');
+    employees = e.data || [];
+    products = (p.data || []).map(x => ({ ...x, spec: (x.spec || '常规款').trim() }));
+    renderEmployees();
+  } catch (err) {
+    console.error(err);
+    document.getElementById('list').innerHTML = '<div style="color:red;padding:10px;">❌ 页面初始化失败，请刷新重试</div>';
+  }
 }
 
 function handleSearch(){
@@ -169,6 +175,11 @@ function renderEmployees(){
 
   const k = getSearch();
   const list = employees.filter(e=> (e.employee_name||'').includes(k) || (e.employee_code||'').includes(k) );
+
+  if (list.length === 0) {
+    document.getElementById('list').innerHTML = `<div class="sub" style="text-align:center;padding:30px;">⚠️ 未找到匹配的员工</div>`;
+    return;
+  }
 
   document.getElementById('list').innerHTML = `
     <div class="emp-grid">
@@ -251,6 +262,7 @@ function renderStores(){
   const sidebarEl = document.getElementById('alphabetSidebar');
   
   if (sortedLetters.length > 1 && !k && f.length > 10) { 
+    sidebarEl.classList.remove('remove');
     sidebarEl.classList.remove('hide');
     sidebarEl.innerHTML = sortedLetters.map(l => `<div class="alphabet-letter" onclick="scrollToLetterGroup('${l}')">${l}</div>`).join('');
   } else {
@@ -664,7 +676,7 @@ function renderReportHtml(dateStr, saleSum, netSum, totalGift, totalScrap, rows)
       </div>
     </div>
 
-    <div style="font-size:14px; font-weight:800; color:var(--primary); margin:18px 0 8px 4px;">🏪 当当日订单明细</div>
+    <div style="font-size:14px; font-weight:800; color:var(--primary); margin:18px 0 8px 4px;">🏪 当日订单明细</div>
     ${rows.length === 0 ? `<div class="sub" style="text-align:center; padding:30px; color:#aaa;">该日期下该员工没有任何开单流水</div>` : 
       rows.map(r => `
         <div class="history-item" style="cursor:pointer; border-left:4px solid var(--primary); padding:14px; margin-bottom:10px;" 
