@@ -18,10 +18,10 @@
     .btn-toggle-dir.minus { background: #fff0f0; color: #d93025; border-color: #d93025; }
     .ios-picker { background: #f4f2f5; color: var(--text-main); border: 1px solid #dcd6dd; border-radius: 6px; padding: 6px; font-size: 14px; font-weight: 700; }
     .brand-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
-    .brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 7px 14px; border-radius: 20px; font-size: 13px; }
+    .brand-badge { background: #f4f2f5; color: var(--text-muted); padding: 7px 14px; border-radius: 20px; font-size: 13px; cursor: pointer; }
     .brand-badge.active { background: #fbf4fc; color: var(--primary); border: 1px solid #eecbf5; }
     .spec-nav { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0; border-bottom: 1px dashed #e2dde3; padding-bottom:6px; }
-    .spec-badge { background: #ffffff; color: #665c67; padding: 4px 10px; border-radius: 6px; font-size: 12px; border: 1px solid #e2dde3; }
+    .spec-badge { background: #ffffff; color: #665c67; padding: 4px 10px; border-radius: 6px; font-size: 12px; border: 1px solid #e2dde3; cursor: pointer; }
     .spec-badge.active { background: var(--primary); color: #ffffff; }
     .float-submit { position: fixed; right: 20px; bottom: 24px; z-index: 99; background: var(--primary); color: #fff; border: none; padding: 14px 26px; border-radius: 50px; font-size: 16px; font-weight: 700; box-shadow: 0 8px 16px rgba(74,21,75,0.3); }
     .sub { font-size:13px; color: var(--text-muted); }
@@ -43,13 +43,29 @@
 <script src="js/stock.js"></script>
 
 <script>
-  const urlParams = new URLSearchParams(window.location.search);
-  const empCode = urlParams.get('emp_code');
-  const empName = urlParams.get('emp_name');
+  // 多网页节点补丁防卡死
+  ['back', 'editStateBadge', 'alphabetSidebar', 'searchBlock'].forEach(id => {
+    if (!document.getElementById(id)) {
+      const dummy = document.createElement('div'); dummy.id = id; dummy.className = 'hide'; dummy.style.display = 'none';
+      document.body.appendChild(dummy);
+    }
+  });
 
   window.APP_STATE = {
     STATE: "STOCK", products: [], currentSelectedSpec: "ALL", currentSelectedBrand: null,
-    currentEmployee: { code: empCode, name: empName }, stockData: {}
+    currentEmployee: { code: new URLSearchParams(window.location.search).get('emp_code'), name: new URLSearchParams(window.location.search).get('emp_name') }, 
+    stockData: {}
+  };
+
+  // 修复核心：重写通用切换逻辑，让它在本页独立触发 renderStockPage
+  window.switchBrand = function(b) {
+    window.APP_STATE.currentSelectedBrand = b;
+    window.APP_STATE.currentSelectedSpec = "ALL";
+    window.renderStockPage();
+  };
+  window.switchSpec = function(s) {
+    window.APP_STATE.currentSelectedSpec = s;
+    window.renderStockPage();
   };
 
   async function initStockPage() {
@@ -57,20 +73,16 @@
     const p = await window.client.from('products').select('*');
     window.APP_STATE.products = (p.data || []).map(x => ({ ...x, spec: (x.spec || '常规款').trim() }));
     
-    // 唤起 stock.js 原始加载
     await window.openStockManagement();
   }
 
   function backToStore() {
-    window.location.href = `store.html?emp_code=${empCode}&emp_name=${encodeURIComponent(empName)}`;
+    window.location.href = `store.html?emp_code=${window.APP_STATE.currentEmployee.code}&emp_name=${encodeURIComponent(window.APP_STATE.currentEmployee.name)}`;
   }
 
-  // 劫持原有提交成功后的重定向
   const originalSubmitStock = window.submitStock;
   window.submitStock = async function() {
-    try {
-      await originalSubmitStock();
-    } catch(e){}
+    try { await originalSubmitStock(); } catch(e){}
     backToStore();
   };
 
