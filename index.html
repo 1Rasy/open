@@ -17,7 +17,6 @@
 }
 
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin:0; background: var(--bg-main); color: var(--text-main); padding-bottom: 90px; -webkit-tap-highlight-color: transparent; }
-/* 🟢 移除：去掉了固定的顶栏样式 */
 .card { background: var(--card-bg); margin:12px; padding:16px; border-radius:12px; box-shadow: 0 4px 12px rgba(74,21,75,0.03); }
 
 .back-btn {
@@ -218,7 +217,7 @@ function renderEmployees(){
       ${list.map(e=>`
         <div class='emp-card' onclick="openEmployee('${e.employee_code}','${e.employee_name}')">
           <strong style="font-size:16px; color:var(--primary); display:block; margin-bottom:4px;">${e.employee_name}</strong>
-          <div class='sub' style="font-size:12px;">工号: ${e.employee_code}</div>
+          <div class='sub' style="font-size:12px;">${e.employee_code}</div>
         </div>
       `).join('')}
     </div>
@@ -230,7 +229,6 @@ async function openEmployee(code, name){
   STATE = 'STORE';
   currentEmployee = {code, name};
 
-  // 🟢 修复：显式设定确保返回按钮回到正常可见状态
   document.getElementById('back').classList.remove('hide');
   document.getElementById('searchBlock').classList.remove('hide'); 
   document.getElementById('list').innerHTML = '<div style="color:#756676;padding:10px;">📊 正在载入负责门店档案...</div>';
@@ -253,7 +251,6 @@ async function openEmployee(code, name){
 
 function renderStores(){
   STATE = 'STORE';
-  // 🟢 修复：进入门店列表时强制纠正返回按钮显隐，杜绝偶发性丢失
   document.getElementById('back').classList.remove('hide');
   document.getElementById('searchBlock').classList.remove('hide'); 
   
@@ -334,7 +331,6 @@ function selectSpec(specName) {
 
 function renderStockPage(){
   STATE = 'STOCK';
-  // 🟢 修复：渲染页面时再次确保返回按键的可用性
   document.getElementById('back').classList.remove('hide');
   
   const displayProducts = products.filter(p => {
@@ -400,7 +396,6 @@ function updateStockInput(prodId, type, val){
   else stockData.additions[prodId][type] = parseInt(val) || 0;
 }
 
-// 🟢 优化：彻底剔除任何形式的“(共xx个)”尾巴说明
 async function submitStock(){
   const addIds = Object.keys(stockData.additions);
   let hasData = false;
@@ -441,7 +436,6 @@ async function submitStock(){
       if(addedBoxes > 0) detailText += `${addedBoxes}中盒 `;
       if(addedPcs > 0) detailText += `${addedPcs}个`;
 
-      // 🟢 优化：不管什么组合，坚决不再抛出括号说明，直接展示录入数据
       reportLines.push(`• [${p.spec} ${p.product_name}] ${dirText} : ${detailText.trim()}`);
     }
   }
@@ -453,7 +447,6 @@ async function submitStock(){
   const finalReport = `🌟 库存更新成功！\n\n变动明细如下：\n${reportLines.join('\n')}`;
   alert(finalReport);
 
-  // 原地无缝重载，且保持返回按钮依然健在
   openStockManagement();
 }
 
@@ -476,7 +469,7 @@ function renderHistory(){
     ${historyOrders.length === 0 ? `<div class="sub" style="text-align:center;padding:40px;color:#9ca3af;">该门店暂无历史开单数据</div>` : 
       historyOrders.map(o => `
         <div class="history-item" onclick="viewOrderDetail('${o.id}', '${o.order_date}')">
-          <div><span style="font-size:15px; font-weight:700; color:#111827;">📅 ${o.order_date}</span><div class="sub" style="font-size:12px;">单号: ${o.id.substring(0,8)}...</div></div>
+          <div><span style="font-size:15px; font-weight:700; color:#111827;">📅 ${o.order_date}</span></div>
           <span style="color:var(--primary); font-size:14px; font-weight:600;">详情 →</span>
         </div>
       `).join('')}
@@ -497,8 +490,7 @@ async function viewOrderDetail(orderId, orderDate) {
       const p = products.find(x => x.id == it.product_id) || { product_name: '未知商品', spec: '常规款', brand: '其他' };
       return `<div class='item'><div class='prod-info' style="width:55%;"><div class='prod-name'>${p.spec} ${p.product_name}</div><div class='sub'>${p.brand}</div></div><div style="font-size:14px; color:#4b5563; margin-left:auto; text-align:right;"><div>数量: <strong style="color:var(--text-main);font-size:15px;">${it.qty}</strong></div><div class="sub">价格: ${it.price}元</div></div></div>`;
     }).join('')}
-    <div style="margin-top:24px;"><button style="background:#6b7280; width:100%; padding:11px; border-radius:8px; font-weight:600;" onclick="renderHistory()">返回历史列表</button></div>
-  `;
+    `;
 }
 
 function openOrder(atom,name){
@@ -598,7 +590,7 @@ async function submitOrder(){
 function goBack(){
   autoResetSearchState();
 
-  if(STATE === 'STOCK') renderStores(); // 🟢 优化：库存页返回时回退到门店列表，不踢出到首页
+  if(STATE === 'STOCK') renderStores(); 
   else if(STATE === 'DETAIL') renderHistory();
   else if(STATE === 'ORDER') renderHistory();
   else if(STATE === 'HISTORY') renderStores(); 
