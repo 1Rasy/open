@@ -1,71 +1,296 @@
-<script>
-// ... (保留之前的配置及初始化逻辑)
+// 🟢 新增：全量动态计算并刷新开单界面的两大指标金额
+function calculateLiveOrderAmounts() {
+  let saleTotal = 0;
+  let returnTotal = 0;
 
-// 🟢 新增：渲染店铺历史记录时，计算该店所有历史数据的总金额
-async function openStoreHistory(atom, name) {
-  STATE = 'HISTORY'; currentStore = { atom, name };
-  document.getElementById('back').classList.remove('hide'); 
-  document.getElementById('list').innerHTML = '<div style="padding:10px;">📊 正在统计门店历史金额...</div>';
-  
-  // 1. 获取所有订单
-  const { data: orders } = await client.from('orders').select('*').eq('atom_code', atom).order('order_date', { ascending: false });
-  historyOrders = orders || [];
-  
-  // 2. 获取该店铺下所有订单的明细
-  const orderIds = historyOrders.map(o => o.id);
-  let totalSale = 0;
-  let totalReturn = 0;
+  products.forEach(p => {
+    const item = orderData.items[p.id];
+    if(item) {
+      saleTotal += (item.qty || 0) * (item.price || 0);
+      returnTotal += (item.return_qty || 0) * (p.default_price || 0);
+    }
+  });
 
-  if (orderIds.length > 0) {
-    const { data: allItems } = await client.from('order_items').select('*').in('order_id', orderIds);
-    (allItems || []).forEach(it => {
-      const p = products.find(x => x.id == it.product_id) || { default_price: 0 };
-      totalSale += (it.qty || 0) * (it.price || 0);
-      totalReturn += (it.return_qty || 0) * (p.default_price || 0);
-    });
+  const banner = document.getElementById('liveAmountBanner');
+  if(banner) {
+    banner.innerHTML = `卖进：<strong>${saleTotal.toFixed(1)}</strong> 元 &nbsp;|&nbsp; 售后：<strong>${returnTotal.toFixed(1)}</strong> 元`;
   }
+}
+
+function renderOrder(){
+  STATE = 'ORDER';
+  document.getElementById('back').classList.remove('hide'); 
+  
+  const displayProducts = products.filter(p => {
+    const matchBrand = p.brand === currentSelectedBrand;
+    const matchSpec = currentSelectedSpec === "ALL" ? true : p.spec === currentSelectedSpec;
+    return matchBrand && matchSpec;
+  });
 
   document.getElementById('list').innerHTML = `
-    <div class="big-store-title">${currentStore.name}</div>
+    <div class="big-store-title">${orderData.name}</div>
     
-    <div class="amount-summary-banner" style="background:#fdfdfd; border-left:5px solid var(--primary);">
-      <div>历史累计卖进：<strong style="color:var(--primary);">${totalSale.toFixed(1)}</strong> 元</div>
-      <div style="margin-top:4px;">历史累计售后：<strong style="color:#e6a23c;">${totalReturn.toFixed(1)}</strong> 元</div>
+    <div class='row' style='margin-bottom:8px; display:flex; align-items:center; gap:12px;'>
+      <span style="font-size:15px;font-weight:700;">📅 日期：<span id='dateText'>${orderData.date}</span></span>
+      <div class="date-picker-wrapper">
+        <button class='smallbtn' style="background:#e8f4ff; color:#1890ff; border-color:#bae7ff; font-weight:bold; padding:6px 12px;">📅 修改日期</button>
+        <input type="date" class="real-date-input" value="${orderData.date}" onchange="syncSelectedDate(this.value)">
+      </div>
     </div>
 
-    <div style="margin: 14px 0;"><button class="btn-new-order" onclick="openOrder('${currentStore.atom}','${currentStore.name}')">＋ 新增单据</button></div>
-    <div style="font-size:14px; font-weight:700; margin-bottom:10px; color:var(--text-muted);">📂 历史账单明细 (${historyOrders.length})</div>
-    ${historyOrders.map(o => `
-        <div class="history-item" onclick="viewOrderDetail('${o.id}', '${o.order_date}')">
-          <div><span style="font-size:15px; font-weight:700; color:#111827;">📅 ${o.order_date}</span></div>
-          <span style="color:var(--primary); font-size:14px; font-weight:600;">查看 →</span>
+    <div id="liveAmountBanner" class="amount-summary-banner">
+      卖进：<strong>0.0</strong> 元 &nbsp;|&nbsp; 售后：<strong>0.0</strong> 元
+    </div>
+    
+    ${generateFilterHeaderHtml()}
+
+    ${displayProducts.map(p => {
+      const itData = orderData.items[p.id] || { qty: 0, price: p.default_price, return_qty: 0, return_handle: 'RESTORE', showPanel: false };
+      
+      return `
+        <div class='item'>
+          <div class="item-main-row">
+            <div class='prod-info'>
+              <div class='prod-name'>${p.spec} ${p.product_name}</div>
+              <div style="margin-top: 4px;">
+                <button id="btn_as_${p.id}" class="btn-aftersale-trigger ${itData.return_qty > 0 ? 'active' : ''}" 
+                        onclick="toggleAfterSalePanel('${p.id}')">
+                  🔄 售后回收 ${itData.return_qty > 0 ? `(${itData.return_qty}个)` : ''}
+                </button>
+              </div>
+            </div>
+            
+            <div class='control-group'>
+              <div class='ctrl-item'>
+                <button class='btn-counter' onclick="changeQty('${p.id}',-1)">-</button>
+                <span class='ctrl-val' id='q_${p.id}'>${itData.qty}</span>
+                <button class='btn-counter' onclick="changeQty('${p.id}',1)">+</button>
+              </div>
+              <div class='ctrl-item'>
+                <button class='btn-counter' onclick="changePrice('${p.id}',-0.1)">-</button>
+                <span class='ctrl-val' id='p_${p.id}' style='min-width:34px;'>${itData.price}</span>
+                <button class='btn-counter' onclick="changePrice('${p.id}',0.1)">+</button>
+                <span style="font-size:11px;color:var(--text-muted);margin-left:1px;">元</span>
+              </div>
+            </div>
+          </div>
+
+          <div id="panel_${p.id}" class="aftersale-panel ${itData.showPanel ? '' : 'hide'}">
+            <div class="aftersale-row">
+              <strong>收回旧货数量：</strong>
+              <div class="ctrl-item">
+                <button class='btn-counter' style="background:#fff; border:1px solid #ccc; padding:2px 8px;" onclick="changeReturnQty('${p.id}',-1)">-</button>
+                <span class='ctrl-val' id='rq_${p.id}' style="min-width:30px; font-size:15px; color:#e6a23c;">${itData.return_qty || 0}</span>
+                <button class='btn-counter' style="background:#fff; border:1px solid #ccc; padding:2px 8px;" onclick="changeReturnQty('${p.id}',1)">+</button>
+              </div>
+            </div>
+            <div class="aftersale-row">
+              <div class="aftersale-options" style="width:100%; justify-content: flex-end;">
+                <label><input type="radio" name="handle_${p.id}" value="RESTORE" ${itData.return_handle !== 'SCRAP' ? 'checked' : ''} onchange="setReturnHandle('${p.id}', 'RESTORE')">🟢 还能卖(加库存)</label>
+                <label><input type="radio" name="handle_${p.id}" value="SCRAP" ${itData.return_handle === 'SCRAP' ? 'checked' : ''} onchange="setReturnHandle('${p.id}', 'SCRAP')">🔴 已过期(不加库存)</label>
+              </div>
+            </div>
+          </div>
         </div>
-    `).join('')}
+      `;
+    }).join('')}
+
+    ${displayProducts.length === 0 ? '<div class="sub" style="text-align:center;padding:40px;">⚠️ 该规格下暂未建立任何商品资料</div>' : ''}
+    <button class='float-submit' onclick='submitOrder()'>🚀 提交账单</button>
   `;
+
+  // 渲染完成后首次运行计算
+  calculateLiveOrderAmounts();
 }
 
-// ... (其他逻辑保持不变)
+function initItemState(id) {
+  if(!orderData.items[id]){ 
+    const p = products.find(x => x.id == id); 
+    orderData.items[id] = { qty: 0, price: p.default_price, return_qty: 0, return_handle: 'RESTORE', showPanel: false }; 
+  }
+}
 
-// 🟢 修复：在提交订单时，如果数据库没有 return_handle 字段，自动过滤掉该字段以防报错
-async function submitOrder(){
-  // ... (中间的逻辑不变)
+function toggleAfterSalePanel(id) {
+  initItemState(id);
+  orderData.items[id].showPanel = !orderData.items[id].showPanel;
+  const el = document.getElementById(`panel_${id}`);
+  if(orderData.items[id].showPanel) el.classList.remove('hide'); else el.classList.add('hide');
+}
 
-  const items = []; 
-  Object.keys(orderData.items).forEach(id=>{ 
-    const it = orderData.items[id]; 
-    if(it.qty > 0 || it.return_qty > 0){ 
-      let itemObj = { 
-        order_id: orderData.id || newOrderId, 
-        product_id: id, 
-        qty: it.qty, 
-        price: it.price,
-        return_qty: it.return_qty || 0
-        // return_handle: it.return_handle // 如果数据库还没加字段，请先注释掉这一行，等字段加好后再取消注释
-      }; 
-      items.push(itemObj); 
-    } 
-  });
+function changeQty(id, v){
+  initItemState(id);
+  orderData.items[id].qty = Math.max(0, (orderData.items[id].qty || 0) + v); 
+  document.getElementById('q_' + id).innerText = orderData.items[id].qty;
+  calculateLiveOrderAmounts(); // 🟢 触发实时金额重新计算
+}
+
+function changePrice(id, v){
+  initItemState(id);
+  orderData.items[id].price = +(orderData.items[id].price + v).toFixed(1); 
+  document.getElementById('p_' + id).innerText = orderData.items[id].price;
+  calculateLiveOrderAmounts(); // 🟢 触发实时金额重新计算
+}
+
+function changeReturnQty(id, v) {
+  initItemState(id);
+  orderData.items[id].return_qty = Math.max(0, (orderData.items[id].return_qty || 0) + v);
+  document.getElementById('rq_' + id).innerText = orderData.items[id].return_qty;
   
-  // ... (后续提交逻辑)
+  const btn = document.getElementById(`btn_as_${id}`);
+  if(orderData.items[id].return_qty > 0) {
+    btn.classList.add('active');
+    btn.innerText = `🔄 售后回收 (${orderData.items[id].return_qty}个)`;
+  } else {
+    btn.classList.remove('active');
+    btn.innerText = `🔄 售后回收`;
+  }
+  calculateLiveOrderAmounts(); // 🟢 触发实时金额重新计算
 }
-</script>
+
+function setReturnHandle(id, handleType) {
+  initItemState(id);
+  orderData.items[id].return_handle = handleType;
+}
+
+function syncSelectedDate(val){
+  if(!val) return;
+  orderData.date = val;
+  document.getElementById('dateText').innerText = val;
+}
+
+async function submitOrder(){
+  // 🟢 防连击：获取按钮并更改状态
+  const submitBtn = document.querySelector('.float-submit');
+  if(submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = '⏳ 提交中...';
+  }
+
+  // 🟢 辅助函数：恢复按钮状态
+  const resetBtn = () => {
+    if(submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = '🚀 提交账单';
+    }
+  };
+
+  const hasAction = Object.keys(orderData.items).some(id => orderData.items[id].qty > 0 || orderData.items[id].return_qty > 0); 
+  if(!hasAction){ 
+    alert("单据内没有任何有效的销售或售后动作，无法提交"); 
+    resetBtn(); // 恢复按钮
+    return; 
+  }
+
+  const { data: currentStocks } = await client.from('emp_stocks').select('*').eq('employee_code', currentEmployee.code);
+  const liveStockMap = {};
+  (currentStocks || []).forEach(st => { liveStockMap[st.product_id] = st.stock_qty || 0; });
+
+  const stockUpdates = [];
+  let isStockDeficit = false; 
+
+  const allProdIds = new Set([...Object.keys(orderData.items), ...Object.keys(orderData.oldItemsMap || {})]);
+
+  for (let id of allProdIds) {
+    const item = orderData.items[id] || { qty: 0, return_qty: 0, return_handle: 'RESTORE' };
+    const oldNetImpact = orderData.oldItemsMap?.[id] || 0; 
+
+    let currentNetImpact = item.qty - (item.return_handle === 'RESTORE' ? (item.return_qty || 0) : 0);
+    const delta = currentNetImpact - oldNetImpact; 
+    
+    const currentAvailStock = liveStockMap[id] || 0;
+    const finalNewStock = currentAvailStock - delta;
+
+    if (finalNewStock < 0) {
+      isStockDeficit = true; 
+    }
+
+    if (delta !== 0 || item.qty > 0 || item.return_qty > 0) {
+      stockUpdates.push({ employee_code: currentEmployee.code, product_id: id, stock_qty: finalNewStock });
+    }
+  }
+
+  if (orderData.id) {
+    const { error: updateOrderErr } = await client.from('orders').update({ order_date: orderData.date }).eq('id', orderData.id);
+    if(updateOrderErr){ alert("账单日期更新失败：" + updateOrderErr.message); resetBtn(); return; }
+
+    const { error: delErr } = await client.from('order_items').delete().eq('order_id', orderData.id);
+    if(delErr){ alert("旧账单明细清空失败：" + delErr.message); resetBtn(); return; }
+
+    const items = []; 
+    Object.keys(orderData.items).forEach(id => { 
+      const it = orderData.items[id]; 
+      if(it.qty > 0 || it.return_qty > 0){ 
+        items.push({ 
+          order_id: orderData.id, 
+          product_id: id, 
+          qty: it.qty, 
+          price: it.price,
+          return_qty: it.return_qty || 0,
+          return_handle: it.return_handle || 'RESTORE'
+        }); 
+      } 
+    });
+    const { error: itemErr } = await client.from('order_items').insert(items); 
+    if(itemErr){ alert("新明细覆盖写入失败：" + itemErr.message); resetBtn(); return; }
+
+  } else {
+    const { data: o, error } = await client.from('orders').insert({ employee_code: currentEmployee.code, atom_code: orderData.atom, order_date: orderData.date }).select().single();
+    if(error){ alert("主订单提交失败：" + error.message); resetBtn(); return; }
+
+    const items = []; 
+    Object.keys(orderData.items).forEach(id=>{ 
+      const it = orderData.items[id]; 
+      if(it.qty > 0 || it.return_qty > 0){ 
+        items.push({ 
+          order_id: o.id, 
+          product_id: id, 
+          qty: it.qty, 
+          price: it.price,
+          return_qty: it.return_qty || 0,
+          return_handle: it.return_handle || 'RESTORE'
+        }); 
+      } 
+    });
+    const { error: itemErr } = await client.from('order_items').insert(items); 
+    if(itemErr){ alert("商品明细提交失败：" + itemErr.message); resetBtn(); return; }
+  }
+
+  if (stockUpdates.length > 0) {
+    const { error: stockErr } = await client.from('emp_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_id' });
+    if(stockErr) alert("单据已生成，但库存扣减异常：" + stockErr.message);
+  }
+
+  if (isStockDeficit) {
+    alert('成功提交！注意：由于包含了换货和销售，部分商品当前可用库存已变负，请及时补充！');
+  } else {
+    alert('成功！');
+  }
+
+  resetBtn(); // 🟢 提交完成后恢复状态
+  openStoreHistory(currentStore.atom, currentStore.name);
+}
+
+function goBack(){
+  autoResetSearchState();
+
+  if(STATE === 'STOCK') {
+    renderStores(); 
+  } else if(STATE === 'DETAIL') {
+    renderHistory();
+  } else if(STATE === 'ORDER') {
+    if (orderData && orderData.id) {
+      viewOrderDetail(orderData.id, orderData.date);
+    } else {
+      renderHistory();
+    }
+  } else if(STATE === 'HISTORY') {
+    renderStores(); 
+  } else if(STATE === 'STORE') {
+    document.getElementById('alphabetSidebar').classList.add('hide'); 
+    document.getElementById('alphabetSidebar').innerHTML = '';
+    renderEmployees();
+  }
+}
+
+init();
+</script></body></html>
