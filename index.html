@@ -2,7 +2,7 @@
 <html lang="zh">
 <head>
 <meta charset="UTF-8" />
-<title>开单+库存</title>
+<title>开单+库存(iOS标准规范版)</title>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <style>
 :root {
@@ -135,6 +135,27 @@ let stockData = {};
 function isSpecialSpecOreo(productObj) {
   if (!productObj || !productObj.spec) return false;
   return productObj.spec.includes("3片装");
+}
+
+// 辅助函数：根据总个数智能转换为“件-盒-个”或者“盒-个”的友好文本
+function formatQtyToUnits(totalPcs, specCase, specBox, showCase = true) {
+  if (specBox > 0) {
+    if (showCase) {
+      let displayCases = Math.floor(totalPcs / specCase);
+      let remPcs = totalPcs % specCase;
+      let displayBoxes = Math.floor(remPcs / specBox);
+      let displayPcs = remPcs % specBox;
+      return `${displayCases}件 ${displayBoxes}盒 ${displayPcs}个`;
+    } else {
+      let displayBoxes = Math.floor(totalPcs / specBox);
+      let displayPcs = totalPcs % specBox;
+      return `${displayBoxes}盒 ${displayPcs}个`;
+    }
+  } else {
+    let displayCases = Math.floor(totalPcs / specCase);
+    let displayPcs = totalPcs % specCase;
+    return showCase ? `${displayCases}件 ${displayPcs}个` : `${displayPcs}个`;
+  }
 }
 
 function getPriceDecimalPlaces(prodId) {
@@ -420,15 +441,13 @@ function renderStockPage(){
     ${generateFilterHeaderHtml()}
     ${displayProducts.map(p => {
       const isOreoSpecial = isSpecialSpecOreo(p);
-      const specCase = p.pcs_per_case || 24; const specBox = p.pcs_per_box || 0;    
+      
+      // 设定包装规格：如果是三片装，假设1件=24中盒，1盒=6个（或者1件=144个，如果没有配置按 24和6 兜底）
+      const specCase = p.pcs_per_case || 24; 
+      const specBox = isOreoSpecial ? (p.pcs_per_box || 6) : (p.pcs_per_box || 0);    
+      
       const totalPcs = stockData.currentStockMap[p.id] || 0; 
-
-      let displayCases = Math.floor(totalPcs / specCase);
-      let displayBoxes = 0; let displayPcs = totalPcs % specCase;
-      if (specBox > 0) {
-        let remPcs = totalPcs % specCase;
-        displayBoxes = Math.floor(remPcs / specBox); displayPcs = remPcs % specBox;
-      }
+      const formattedStockText = formatQtyToUnits(totalPcs, specCase, specBox, true);
 
       const currentDir = stockData.additions[p.id]?.dir || 'plus';
       const curC = stockData.additions[p.id]?.cases || 0;
@@ -439,7 +458,7 @@ function renderStockPage(){
         <div class="stock-row">
           <div style="font-weight:600; font-size:15px; color:var(--primary);">${p.spec} ${p.product_name}</div>
           <div style="font-size:13px; margin-top:6px; color:#333; background:#f0ebf1; padding:6px 10px; border-radius:6px;">
-            当前库存: ${isOreoSpecial ? `<strong>${totalPcs}</strong> 个` : `<strong>${displayCases}</strong> 件 ${specBox > 0 ? `<strong>${displayBoxes}</strong> 中盒 ` : ''}<strong>${displayPcs}</strong> 个`}
+            当前库存: <strong>${formattedStockText}</strong>
           </div>
           <div class="stock-input-group">
             <select class="stock-dir-select" onchange="updateStockInput('${p.id}', 'dir', this.value)">
@@ -447,22 +466,15 @@ function renderStockPage(){
               <option value="minus" ${currentDir === 'minus' ? 'selected' : ''}>减少 ➖</option>
             </select>
             
-            ${isOreoSpecial ? `
-              <div class="picker-wrapper">
-                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'pcs', this.value)">${makePureQtyOptionsHtml(200, curP)}</select><span class="unit-txt">个</span>
-              </div>
-            ` : `
-              <div class="picker-wrapper">
-                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'cases', this.value)">${makePureQtyOptionsHtml(50, curC)}</select><span class="unit-txt">件</span>
-              </div>
-              ${specBox > 0 ? `
-              <div class="picker-wrapper">
-                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'boxes', this.value)">${makePureQtyOptionsHtml(50, curB)}</select><span class="unit-txt">盒</span>
-              </div>` : ''}
-              <div class="picker-wrapper">
-                <select class="ios-picker" onchange="updateStockInput('${p.id}', 'pcs', this.value)">${makePureQtyOptionsHtml(100, curP)}</select><span class="unit-txt">个</span>
-              </div>
-            `}
+            <div class="picker-wrapper">
+              <select class="ios-picker" onchange="updateStockInput('${p.id}', 'cases', this.value)">${makePureQtyOptionsHtml(50, curC)}</select><span class="unit-txt">件</span>
+            </div>
+            <div class="picker-wrapper">
+              <select class="ios-picker" onchange="updateStockInput('${p.id}', 'boxes', this.value)">${makePureQtyOptionsHtml(50, curB)}</select><span class="unit-txt">盒</span>
+            </div>
+            <div class="picker-wrapper">
+              <select class="ios-picker" onchange="updateStockInput('${p.id}', 'pcs', this.value)">${makePureQtyOptionsHtml(100, curP)}</select><span class="unit-txt">个</span>
+            </div>
           </div>
         </div>
       `;
@@ -484,19 +496,21 @@ async function submitStock(){
   for(let id of addIds){
     const p = products.find(x => x.id == id);
     const isOreoSpecial = isSpecialSpecOreo(p);
-    const specCase = p.pcs_per_case || 24; const specBox = p.pcs_per_box || 0;
+    const specCase = p.pcs_per_case || 24; 
+    const specBox = isOreoSpecial ? (p.pcs_per_box || 6) : (p.pcs_per_box || 0);
+    
     const dir = stockData.additions[id].dir || 'plus';
     const addedCases = stockData.additions[id].cases || 0;
     const addedBoxes = stockData.additions[id].boxes || 0;
     const addedPcs = stockData.additions[id].pcs || 0;
 
-    let delta = isOreoSpecial ? addedPcs : (specBox > 0 ? (addedCases * specCase) + (addedBoxes * specBox) + addedPcs : (addedCases * specCase) + addedPcs);
+    let delta = specBox > 0 ? (addedCases * specCase) + (addedBoxes * specBox) + addedPcs : (addedCases * specCase) + addedPcs;
     if(delta > 0){
       hasData = true; const currentTotal = stockData.currentStockMap[id] || 0;
       let newTotal = dir === 'plus' ? currentTotal + delta : currentTotal - delta;
       if (newTotal < 0) { alert(`❌ [${p.product_name}] 可用库存不足！`); return; }
       updates.push({ employee_code: stockData.emp_code, product_id: id, stock_qty: newTotal });
-      reportLines.push(`• [${p.spec} ${p.product_name}] ${dir==='plus'?'增加':'减少'} : ${isOreoSpecial ? `${addedPcs}个` : `${addedCases}件${addedBoxes}盒${addedPcs}个`}`);
+      reportLines.push(`• [${p.spec} ${p.product_name}] ${dir==='plus'?'增加':'减少'} : ${addedCases}件${addedBoxes}盒${addedPcs}个`);
     }
   }
   if(!hasData){ alert("请输入变更量！"); return; }
@@ -598,18 +612,31 @@ async function viewOrderDetail(orderId, orderDate) {
       const rowRes = getLiveRowAmounts(p, it.qty || 0, it.price || 0, it.gift_qty || 0, parsedReturn.qty || 0, parsedReturn.handle);
       const rowNetRevenue = rowRes.saleAmount - rowRes.scrapAmount - rowRes.giftAmount;
 
+      const isOreoSpecial = isSpecialSpecOreo(p);
+      const specCase = p.pcs_per_case || 24;
+      const specBox = isOreoSpecial ? (p.pcs_per_box || 6) : 0;
+
+      // 根据配置生成卖进的数量展示
+      let saleQtyDisplayText = `${it.qty} 个`;
+      if (isOreoSpecial && specBox > 0) {
+         saleQtyDisplayText = formatQtyToUnits(it.qty, specCase, specBox, false); // 不显示“件”，显示“盒 个”
+      }
+
       return `
         <div class='item'>
           <div style="font-weight:600; font-size:15px; color:var(--primary); margin-bottom: 6px;">${p.spec} ${p.product_name}</div>
           
+          <!-- 双行排版网格 -->
           <div class="detail-grid-container">
+            <!-- 第一行：实际收入 跟 卖进 -->
             <div class="detail-grid-item">
               <span>实际收入: <strong style="color:var(--primary); font-size:14px;">${rowNetRevenue.toFixed(1)}元</strong></span>
             </div>
             <div class="detail-grid-item" style="text-align: right; justify-content: flex-end;">
-              <span>卖进: <strong>${it.qty}</strong> 个 × ${Number(it.price).toFixed(getPriceDecimalPlaces(it.product_id))}元</span>
+              <span>卖进: <strong>${saleQtyDisplayText}</strong> × ${Number(it.price).toFixed(getPriceDecimalPlaces(it.product_id))}元</span>
             </div>
             
+            <!-- 第二行：赠送 跟 过期 -->
             <div class="detail-grid-item">
               <span>赠送: <span style="color:#1890ff;">${it.gift_qty || 0}</span> 个</span>
             </div>
@@ -623,52 +650,47 @@ async function viewOrderDetail(orderId, orderDate) {
 }
 
 function editExistingOrder(orderId, orderDate, rawItemsEncoded) {
-  STATE = 'ORDER';
-  const items = JSON.parse(decodeURIComponent(rawItemsEncoded));
-  orderData = { id: orderId, atom: currentStore.atom, name: currentStore.name, date: orderDate, items: {}, oldItemsMap: {} };
-
-  items.forEach(it => {
-    const parsedReturn = parseReturnHandleText(it.return_handle);
-    orderData.items[it.product_id] = { 
-      qty: it.qty, price: it.price, gift_qty: it.gift_qty || 0,
-      return_qty: parsedReturn.qty, return_handle: parsedReturn.handle,
-      showPanel: parsedReturn.qty > 0 || (it.gift_qty || 0) > 0
-    };
-    
-    const pObj = products.find(x => x.id == it.product_id);
-    const isOreoSpecial = isSpecialSpecOreo(pObj);
-    const saleBags = isOreoSpecial ? (it.qty * 11) : it.qty;
-    const giftBags = it.gift_qty || 0;
-    const returnBags = parsedReturn.qty || 0;
-
-    let oldNet = saleBags + giftBags;
-    if (parsedReturn.handle === 'RESTORE') {
-      oldNet -= returnBags; 
-    }
-    orderData.oldItemsMap[it.product_id] = oldNet; 
-  });
-
-  if (products.length > 0) {
-    const brands = [...new Set(products.map(p => p.brand))];
-    currentSelectedBrand = brands.length > 0 ? brands[0] : null;
-    currentSelectedSpec = "ALL";
-  }
-
-  document.getElementById('editStateBadge').classList.remove('hide'); 
-  renderOrder();
+  templateEditOrNew(orderId, orderDate, rawItemsEncoded);
 }
 
 function openOrder(atom, name){
-  STATE = 'ORDER'; const d = new Date(); 
-  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  orderData = { atom, name, date: today, items: {}, oldItemsMap: {} }; 
-  
+  templateEditOrNew(null, null, null, atom, name);
+}
+
+function templateEditOrNew(orderId=null, orderDate=null, rawItemsEncoded=null, atom=null, name=null) {
+  STATE = 'ORDER';
+  if(orderId) {
+    const items = JSON.parse(decodeURIComponent(rawItemsEncoded));
+    orderData = { id: orderId, atom: currentStore.atom, name: currentStore.name, date: orderDate, items: {}, oldItemsMap: {} };
+    items.forEach(it => {
+      const parsedReturn = parseReturnHandleText(it.return_handle);
+      orderData.items[it.product_id] = { 
+        qty: it.qty, price: it.price, gift_qty: it.gift_qty || 0,
+        return_qty: parsedReturn.qty, return_handle: parsedReturn.handle,
+        showPanel: parsedReturn.qty > 0 || (it.gift_qty || 0) > 0
+      };
+      const pObj = products.find(x => x.id == it.product_id);
+      const isOreoSpecial = isSpecialSpecOreo(pObj);
+      const saleBags = isOreoSpecial ? (it.qty * 11) : it.qty;
+      const giftBags = it.gift_qty || 0;
+      const returnBags = parsedReturn.qty || 0;
+      let oldNet = saleBags + giftBags;
+      if (parsedReturn.handle === 'RESTORE') oldNet -= returnBags; 
+      orderData.oldItemsMap[it.product_id] = oldNet; 
+    });
+    document.getElementById('editStateBadge').classList.remove('hide');
+  } else {
+    const d = new Date(); 
+    const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    orderData = { atom, name, date: today, items: {}, oldItemsMap: {} }; 
+    document.getElementById('editStateBadge').classList.add('hide');
+  }
+
   if (products.length > 0) {
     const brands = [...new Set(products.map(p => p.brand))];
     currentSelectedBrand = brands.length > 0 ? brands[0] : null;
     currentSelectedSpec = "ALL";
   }
-  document.getElementById('editStateBadge').classList.add('hide'); 
   renderOrder();
 }
 
@@ -714,6 +736,7 @@ function renderOrder(){
 
       return `
         <div class='item'>
+          <!-- 第一行：商品选择与录入 -->
           <div class="item-main-row">
             <div class='prod-info'>
               <div class='prod-name'>${p.spec} ${p.product_name}</div>
@@ -738,6 +761,7 @@ function renderOrder(){
             </div>
           </div>
           
+          <!-- 第二行（原售后面板）：收回与赠送数量及单选切换 -->
           <div id="panel_${p.id}" class="aftersale-panel ${itData.showPanel ? '' : 'hide'}">
             <div class="aftersale-row-picks">
               <div class="picker-wrapper" style="flex:1;">
