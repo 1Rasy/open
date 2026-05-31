@@ -1,3 +1,18 @@
+// === 日报页面防重复补丁 ===
+(function() {
+  const originalOpenSaleReport = window.openSaleReport;
+  if (originalOpenSaleReport) {
+    window.openSaleReport = async function(targetDate) {
+      // 在每次打开日报前，强制清空一次列表容器，防止旧残留和双日期出现
+      const listContainer = document.getElementById('list');
+      if (listContainer) listContainer.innerHTML = '<div style="color:#756676;padding:10px;">正在加载...</div>';
+      
+      // 执行原有的日报逻辑
+      return await originalOpenSaleReport.apply(this, arguments);
+    };
+  }
+})();
+// === 补丁结束 ===
 window.openSaleReport = async function(targetDate) {
   window.APP_STATE.STATE = 'REPORT'; window.APP_STATE.orderData = null;
   document.getElementById('back').classList.remove('hide'); 
