@@ -580,7 +580,7 @@ async function viewOrderDetail(orderId, orderDate, fromReport = false) {
 }
 
 async function deleteExistingOrder(orderId, rawItemsEncoded) {
-  if (!confirm("⚠️ 确定要彻底删除该笔订单吗？删除后占用的库存将自动回滚，此操作不可撤销！")) return;
+  if (!confirm("确定要删除这笔订单吗？")) return;
 
   const listEl = document.getElementById('list');
   const isFromReport = listEl.getAttribute('data-from-report') === 'true';
@@ -625,7 +625,7 @@ async function deleteExistingOrder(orderId, rawItemsEncoded) {
       await client.from('emp_stocks').upsert(stockUpdates, { onConflict: 'employee_code,product_id' });
     }
 
-    alert("🗑️ 订单删除成功，库存已安全回滚！");
+    alert("订单已成功删除！");
 
     if (isFromReport) {
       openSaleReport(selectedReportDate);
@@ -789,6 +789,7 @@ function templateEditOrNew(orderId=null, orderDate=null, rawItemsEncoded=null, a
       if (parsedReturn.handle === 'RESTORE') oldNet -= returnBags; 
       orderData.oldItemsMap[it.product_id] = oldNet; 
     });
+    document.getElementById('editStateBadge').classList.remove('remove');
     document.getElementById('editStateBadge').classList.remove('hide');
   } else {
     const d = new Date(); 
@@ -913,7 +914,23 @@ function initItemState(id) {
 }
 
 function pickerChangeQty(id, value) { initItemState(id); orderData.items[id].qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
-function pickerChangePrice(id, value) { initItemState(id); orderData.items[id].price = parseFloat(value) || 0; calculateLiveOrderAmounts(); }
+
+function pickerChangePrice(id, value) { 
+  initItemState(id); 
+  const targetPrice = parseFloat(value) || 0;
+  const currentProd = products.find(x => x.id == id);
+  if (!currentProd) return;
+
+  const sameSpecProducts = products.filter(p => p.brand === currentProd.brand && p.spec === currentProd.spec);
+  
+  sameSpecProducts.forEach(p => {
+    initItemState(p.id);
+    orderData.items[p.id].price = targetPrice;
+  });
+
+  renderOrder();
+}
+
 function pickerChangeGiftQty(id, value) { initItemState(id); orderData.items[id].gift_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
 function pickerChangeReturnQty(id, value) { initItemState(id); orderData.items[id].return_qty = parseInt(value) || 0; calculateLiveOrderAmounts(); }
 function toggleAfterSalePanel(id) { initItemState(id); orderData.items[id].showPanel = !orderData.items[id].showPanel; renderOrder(); }
